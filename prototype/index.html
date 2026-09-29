@@ -1,4 +1,5 @@
 <title>FitCircle Prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Clickable MVP of FitCircle: social fitness accountability with Peer Groups, Instructor Challenges and Custom 75-Day.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -78,7 +79,7 @@ input{font:inherit; color:inherit}
   width:100%; max-width:390px; height:min(812px, calc(100dvh - 48px)); min-height:640px; background:var(--surface); border-radius:46px;
   border:10px solid var(--frame); box-shadow:0 30px 70px -20px color-mix(in srgb,var(--seg) 45%,transparent), 0 10px 30px -10px rgba(0,0,0,.35);
   position:relative; overflow:hidden; display:flex; flex-direction:column; transition:box-shadow .5s}
-@media (max-width:480px){ .phone{border-width:7px; border-radius:36px; height:760px} .phone-wrap{position:static} }
+@media (max-width:480px){ body{padding-top:12px} .phone{border-width:0; border-radius:24px; height:calc(100dvh - 24px); min-height:600px; max-width:none} .phone-wrap{position:static} .statusbar{height:14px} .statusbar > *, .statusbar .sig{display:none} }
 .seg-peer{--seg:var(--peer); --seg2:var(--peer2)}
 .seg-coach{--seg:var(--coach); --seg2:var(--coach2)}
 .seg-d75{--seg:var(--d75); --seg2:var(--d75b)}
@@ -390,6 +391,8 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
         <li>Forfeits go to completers</li>
         <li>Instructors are verified</li>
         <li>Anyone can flag fake proof</li>
+        <li>FitCircle keeps 35% of instructor fees</li>
+        <li>FitCircle keeps 30% of every other pool</li>
       </ul>
     </div>
   </section>
@@ -438,10 +441,10 @@ const SEG = {
   d75:   {name:'Custom 75-Day', short:'75-Day', icon:'cal', blurb:'Pick your daily tasks. Go Hard or Soft. Set your own rules and stakes.', tag:'Premium builder'},
 };
 const COACHES = [
-  {id:'wanjiru', name:'Coach Wanjiru M.', init:'WM', prog:'Karura Forest 10K', weeks:6, fee:1500, joined:48, rating:4.9, cut:75, tags:['Running','Beginner friendly'], grad:['#2B55F5','#12B0FF'], today:'Tempo run · 5 km at conversational pace, then 4 × 100 m strides.'},
-  {id:'otieno',  name:'Coach Otieno K.',  init:'OK', prog:'Kettlebell Strength Block', weeks:4, fee:2000, joined:31, rating:4.8, cut:80, tags:['Strength','Home workout'], grad:['#6A3DF2','#2B55F5'], today:'Swings 5 × 15, goblet squats 4 × 10, 10-min finisher.'},
-  {id:'fatuma',  name:'Coach Fatuma A.',  init:'FA', prog:'Mobility & Yoga Reset', weeks:3, fee:1000, joined:62, rating:5.0, cut:75, tags:['Yoga','All levels'], grad:['#0F8FD6','#34D1C4'], today:'Hip openers flow · 25 minutes, follow the voice note.'},
-  {id:'kiprono', name:'Coach Kiprono',    init:'KP', prog:'Lunch-Break HIIT (Teams)', weeks:8, fee:2500, joined:24, rating:4.7, cut:70, tags:['HIIT','Corporate'], grad:['#1D3FCF','#5B7DFF'], today:'20-min EMOM · burpees, mountain climbers, jump squats.'},
+  {id:'wanjiru', name:'Coach Wanjiru M.', init:'WM', prog:'Karura Forest 10K', weeks:6, fee:1500, joined:48, rating:4.9, cut:65, tags:['Running','Beginner friendly'], grad:['#2B55F5','#12B0FF'], today:'Tempo run · 5 km at conversational pace, then 4 × 100 m strides.'},
+  {id:'otieno',  name:'Coach Otieno K.',  init:'OK', prog:'Kettlebell Strength Block', weeks:4, fee:2000, joined:31, rating:4.8, cut:65, tags:['Strength','Home workout'], grad:['#6A3DF2','#2B55F5'], today:'Swings 5 × 15, goblet squats 4 × 10, 10-min finisher.'},
+  {id:'fatuma',  name:'Coach Fatuma A.',  init:'FA', prog:'Mobility & Yoga Reset', weeks:3, fee:1000, joined:62, rating:5.0, cut:65, tags:['Yoga','All levels'], grad:['#0F8FD6','#34D1C4'], today:'Hip openers flow · 25 minutes, follow the voice note.'},
+  {id:'kiprono', name:'Coach Kiprono',    init:'KP', prog:'Lunch-Break HIIT (Teams)', weeks:8, fee:2500, joined:24, rating:4.7, cut:65, tags:['HIIT','Corporate'], grad:['#1D3FCF','#5B7DFF'], today:'20-min EMOM · burpees, mountain climbers, jump squats.'},
 ];
 const TASKS = [
   {id:'workout', t:'45-min workout', h:true, s:true}, {id:'outdoor', t:'Second workout, outdoors', h:true},
@@ -471,6 +474,8 @@ const fresh = () => ({
 let S = fresh();
 
 const $ = id => document.getElementById(id);
+const FEE_COACH = 35, FEE_POOL = 30; // FitCircle's cut: instructor-led vs everything else
+const sgn = n => (n < 0 ? '−' : '+') + fmt(Math.abs(n));
 const fmt = n => Math.round(n).toLocaleString('en-KE');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const coach = () => COACHES.find(c => c.id === S.coachId);
@@ -595,7 +600,7 @@ V.stake = () => {
   ${adult() ? `<div class="amounts">${[200,500,1000,2000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
   <button class="switch" data-act="noStake" role="switch" aria-checked="${!staked()}" ${adult() ? '' : 'disabled'}>
     <span class="grow"><b style="display:block;font-size:14.5px">Run without stakes</b><span class="small muted">${adult() ? 'Same challenge, no money on the line.' : 'Staked challenges are for ages 18 and up.'}</span></span><span class="tg"></span></button>
-  ${staked() ? `<div class="outcomes"><div class="w"><b>Show up</b>Get your KES ${fmt(amt)} back plus a share of every forfeited stake.</div><div class="l"><b>Skip</b>Your KES ${fmt(amt)} goes to the people who showed up.</div></div>` : ''}`}
+  ${staked() ? `<div class="outcomes"><div class="w"><b>Show up</b>Split the Jackpot with everyone who finishes, after the ${FEE_POOL}% FitCircle fee.</div><div class="l"><b>Skip</b>Your KES ${fmt(amt)} goes to the people who showed up.</div></div>` : ''}`}
   <p class="note">${I.lock}${staked() ? 'Money is locked when the challenge starts on Monday and cannot be withdrawn early.' : 'You still log proof and appear on the leaderboard.'}</p>
   <div class="stick"><button class="btn" data-act="${staked() ? 'go' : 'startFree'}" data-arg="pay">${staked() ? `${I.lock} Lock KES ${fmt(amt)}` : `Start the challenge ${I.arrow}`}</button></div>`;
 };
@@ -713,7 +718,7 @@ V.alerts = () => {
 const settlement = () => {
   const list = members();
   const done = S.seg === 'peer' ? ['Amani','Achieng','Njeri','Wambui'] : S.seg === 'd75' ? ['Amani','Achieng','Njeri'] : list.map(m => m.n);
-  const amt = stakeAmt(), pool = amt * list.length, fee = Math.round(pool * .1), each = (pool - fee) / done.length;
+  const amt = stakeAmt(), pool = amt * list.length, fee = Math.round(pool * FEE_POOL / 100), each = (pool - fee) / done.length;
   return {list, done, amt, pool, fee, each};
 };
 
@@ -734,16 +739,16 @@ V.end = () => {
   <div class="settle">${s.list.map((m, i) => { const ok = s.done.includes(m.n); return `
     <div class="it" style="animation-delay:${.15 + i * .12}s">${av(m.n, 32)}<b>${esc(m.me ? 'You' : m.n)}</b>
       <span class="pill ${ok ? 'good' : 'bad'}">${ok ? 'Completed' : 'Missed target'}</span>
-      <span class="amt ${ok ? 'plus' : 'minus'}">${ok ? '+' + fmt(s.each - s.amt) : '−' + fmt(s.amt)}</span></div>`; }).join('')}</div>
-  <div class="card math num"><span class="muted">Pool</span><span>KES ${fmt(s.pool)}</span><span class="muted">FitCircle fee (10%)</span><span>− KES ${fmt(s.fee)}</span><span class="tot">Each completer receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
+      <span class="amt ${ok && s.each >= s.amt ? 'plus' : 'minus'}">${ok ? sgn(s.each - s.amt) : '−' + fmt(s.amt)}</span></div>`; }).join('')}</div>
+  <div class="card math num"><span class="muted">Pool</span><span>KES ${fmt(s.pool)}</span><span class="muted">FitCircle fee (${FEE_POOL}%)</span><span>− KES ${fmt(s.fee)}</span><span class="tot">Each completer receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
   <div class="stick"><button class="btn" data-act="go" data-arg="win">${I.trophy} Collect KES ${fmt(s.each)}</button></div>`;
 };
 
 V.win = () => {
   const s = staked() && S.seg !== 'coach' ? settlement() : null, c = coach();
-  const headline = s ? `+KES ${fmt(s.each - s.amt)}` : S.seg === 'coach' ? 'Programme done' : '75 / 75';
+  const headline = s ? `KES ${fmt(s.each)}` : S.seg === 'coach' ? 'Programme done' : '75 / 75';
   const line = s ? `Put in KES ${fmt(s.amt)}. Took home KES ${fmt(s.each)}.` : S.seg === 'coach' ? `${c.prog} with ${c.name}` : 'Every task, every day.';
-  const shareText = `I just finished ${S.seg === 'coach' ? c.prog : S.seg === 'd75' ? 'my 75-day challenge' : esc(S.peer.name) + ' on FitCircle'}. ${s ? `Won KES ${fmt(s.each - s.amt)} for showing up.` : ''} Join my next circle: fitcircle.co/j/${S.peer.code}`;
+  const shareText = `I just finished ${S.seg === 'coach' ? c.prog : S.seg === 'd75' ? 'my 75-day challenge' : esc(S.peer.name) + ' on FitCircle'}. ${s ? `Took home KES ${fmt(s.each)} from the Jackpot.` : ''} Join my next circle: fitcircle.co/j/${S.peer.code}`;
   return `<div class="topbar"><h2 style="padding:0">You showed up.</h2></div>
   <div class="sharecard"><div class="row" style="gap:8px">${I.trophy}<b>FitCircle · ${SEG[S.seg].name}</b></div>
     <div class="big">${headline}</div><div>${line}</div>
@@ -762,7 +767,7 @@ const FLAGS = [{n:'Collins', by:'Faith', r:'Old photo', note:'Same photo as last
   {n:'Esther', by:'Dennis', r:'Not a workout', note:'Looks like a walk to the shops.', t:'Tempo run'},
   {n:'Otieno', by:'Mercy', r:'Someone else', note:'Face not visible, different shoes.', t:'Strides'},
   {n:'Brian', by:'Joy', r:'Old photo', note:'Timestamp looks edited.', t:'Recovery jog'}];
-const EARN = [['Apr',18000],['May',22500],['Jun',31500],['Jul',36000],['Aug',45000],['Sep',54000]];
+const EARN = [['Apr',15600],['May',19500],['Jun',27300],['Jul',31200],['Aug',39000],['Sep',46800]];
 const CHECKINS = [['Mon',44],['Tue',42],['Wed',39],['Thu',31],['Fri',0],['Sat',0],['Sun',0]];
 const atRisk = p => !p.td && p.s <= 2;
 const openFlags = () => FLAGS.filter(f => !S.reviewed[f.n]).length;
@@ -777,7 +782,7 @@ function barChart(rows, {max, ticks, hl, part, tip, label}) {
 }
 
 V.cVerify = () => { const v = S.verify, all = v.cert && v.id && v.video; return `${top('Become an instructor')}
-  <div><span class="eyebrow">For certified trainers</span><h3 class="big" style="margin-top:6px">Run paid challenges. Keep 70–80% of every fee.</h3>
+  <div><span class="eyebrow">For certified trainers</span><h3 class="big" style="margin-top:6px">Run paid challenges. Keep ${100 - FEE_COACH}% of every fee.</h3>
     <p class="sub" style="margin-top:8px">Before you go live we check three things. Most trainers are verified within 24 hours.</p></div>
   ${[['cert','Fitness certification','PDF or photo of your certificate'],['id','National ID or passport','Matched to your M-Pesa name'],['video','60-second demo video','Coach a short session on camera']].map(([k,t,d]) => `
     <button class="vstep" data-act="vstep" data-arg="${k}" aria-pressed="${v[k]}"><span class="bx">${v[k] ? I.check : I.plus}</span><span class="grow"><b style="display:block">${t}</b><span class="small muted">${v[k] ? 'Uploaded · approved' : d}</span></span></button>`).join('')}
@@ -788,8 +793,8 @@ V.cDash = () => {
   return `<div class="row"><div class="grow"><div class="small muted"><span class="verified">${I.shield}Verified instructor</span></div><div style="font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em">Habari, Wanjiru</div></div>
     <span class="av" style="background:linear-gradient(135deg,var(--coach),var(--coach2))">W</span></div>
   <div class="hero"><div class="k">Your earnings · ${c.prog}</div>
-    <div class="v num"><small>KES</small><span data-count="54000">54,000</span></div>
-    <div class="meta"><span class="num">75% of KES 72,000 in entry fees</span><span>Payout Friday via M-Pesa</span></div></div>
+    <div class="v num"><small>KES</small><span data-count="46800">46,800</span></div>
+    <div class="meta"><span class="num">${100 - FEE_COACH}% of KES 72,000 in entry fees</span><span>Payout Friday via M-Pesa</span></div></div>
   <div class="stats3">
     <button class="stat" data-act="cgo" data-arg="cMembers"><b class="num">${logged}<span style="font-size:14px;color:var(--muted)">/${people}</span></b><span>logged today</span></button>
     <button class="stat" data-act="cfilter" data-arg="risk"><b class="num" style="color:var(--bad)">${S.cNudged ? 0 : risk}</b><span>at risk</span><span class="pill ${S.cNudged ? 'good' : 'bad'}">${S.cNudged ? 'Nudged' : 'Nudge'}</span></button>
@@ -835,7 +840,7 @@ V.cReview = () => {
 V.cEarn = () => {
   const c = COACHES[0], fee = c.fee, you = fee * c.cut / 100;
   return `<div class="topbar"><h2 style="padding:0">Earnings</h2></div>
-  <div class="hero"><div class="k">Earned since April</div><div class="v num"><small>KES</small><span data-count="207000">207,000</span></div>
+  <div class="hero"><div class="k">Earned since April</div><div class="v num"><small>KES</small><span data-count="179400">179,400</span></div>
     <div class="meta"><span>6 cohorts · 154 people coached</span><span>Next payout Fri 3 Oct</span></div></div>
   <div class="card"><div class="row" style="margin-bottom:14px"><b class="grow">Monthly earnings (KES)</b><span class="pill good">+20% vs Aug</span></div>
     ${barChart(EARN, {max:60000, ticks:[20000,40000,60000], hl:5, label:'Monthly earnings from April to September', tip:(k,v) => `${k}: KES ${fmt(v)}`})}</div>
@@ -843,7 +848,7 @@ V.cEarn = () => {
     <div class="split"><i style="width:${c.cut}%;background:var(--coach)"></i><i style="flex:1;background:var(--gold)"></i></div>
     <div class="row small num" style="margin-top:8px"><span><b>KES ${fmt(you)}</b> to you (${c.cut}%)</span><span class="muted" style="margin-left:auto">KES ${fmt(fee - you)} FitCircle</span></div></div>
   <div class="card"><b style="display:block;margin-bottom:2px">Payouts to M-Pesa ${esc(S.user.phone)}</b>
-    ${[['Fri 3 Oct','Karura 10K · week 3',18000,'Scheduled','seg'],['Fri 26 Sep','Karura 10K · week 2',18000,'Paid','good'],['Fri 19 Sep','Karura 10K · week 1',18000,'Paid','good'],['Fri 29 Aug','Sunrise Strength',45000,'Paid','good']]
+    ${[['Fri 3 Oct','Karura 10K · week 3',15600,'Scheduled','seg'],['Fri 26 Sep','Karura 10K · week 2',15600,'Paid','good'],['Fri 19 Sep','Karura 10K · week 1',15600,'Paid','good'],['Fri 29 Aug','Sunrise Strength',39000,'Paid','good']]
       .map(([d,w,a,s,c]) => `<div class="pay"><div class="grow"><b style="display:block;font-size:14px">${d}</b><span class="small muted">${w}</span></div><b class="num">KES ${fmt(a)}</b><span class="pill ${c}">${s}</span></div>`).join('')}</div>`;
 };
 
@@ -854,13 +859,13 @@ V.cPlan = () => `${top("Today's plan")}
   <button class="switch" data-act="pvoice" role="switch" aria-checked="${S.plan.voice}"><span class="grow"><b style="display:block;font-size:14.5px">Attach a voice note</b><span class="small muted">People who get a voice note log 23% more often.</span></span><span class="tg"></span></button>
   <div class="stick"><button class="btn" data-act="sendPlan">${I.arrow} Send to 48 people</button></div>`;
 
-V.cNew = () => { const p = S.newProg, full = p.fee * p.cap * .75; return `${top('New programme')}
+V.cNew = () => { const p = S.newProg, full = p.fee * p.cap * (100 - FEE_COACH) / 100; return `${top('New programme')}
   <div class="field"><label for="f-nname">Programme name</label><input id="f-nname" data-bind="newProg.name" value="${esc(p.name)}"></div>
   <div class="field"><label>Length</label><div class="seg-ctrl">${[1,4,6,8,12].map(n => `<button data-act="np" data-arg="weeks|${n}" aria-pressed="${p.weeks===n}">${n} wk</button>`).join('')}</div></div>
   <div class="field"><label>Entry fee (KES)</label><div class="amounts">${[1000,1500,2000,2500].map(n => `<button class="num" data-act="np" data-arg="fee|${n}" aria-pressed="${p.fee===n}">${fmt(n)}</button>`).join('')}</div></div>
   <div class="field"><label>Places</label><div class="seg-ctrl">${[20,40,60].map(n => `<button data-act="np" data-arg="cap|${n}" aria-pressed="${p.cap===n}">${n}</button>`).join('')}</div></div>
   <div class="hero"><div class="k">If it fills up, you earn</div><div class="v num"><small>KES</small>${fmt(full)}</div>
-    <div class="meta num"><span>${p.cap} × KES ${fmt(p.fee)} × 75%</span><span>over ${p.weeks} week${p.weeks > 1 ? 's' : ''}</span></div></div>
+    <div class="meta num"><span>${p.cap} × KES ${fmt(p.fee)} × ${100 - FEE_COACH}%</span><span>over ${p.weeks} week${p.weeks > 1 ? 's' : ''}</span></div></div>
   <div class="stick"><button class="btn" data-act="publishProg">Publish programme</button></div>`; };
 
 // ---------- render ----------
@@ -911,7 +916,7 @@ function renderLayer() {
     <button class="btn" data-act="acceptInvite">Join the group ${I.arrow}</button></div></div>`;
 }
 const CSTEPS = [['Become an instructor','Certification, ID, demo video','cVerify'],['Dashboard','Today at a glance','cDash'],["Post today's plan",'Morning message to the group','cPlan'],['Members','Who is on track, who is slipping','cMembers'],
-  ['Review proof','Approve or reject flags','cReview'],['Earnings','Your 70–80% share, paid weekly','cEarn'],['New programme','Launch the next cohort','cNew'],['See it as a member','Switch to the participant app','member']];
+  ['Review proof','Approve or reject flags','cReview'],['Earnings','Your 65% share, paid weekly','cEarn'],['New programme','Launch the next cohort','cNew'],['See it as a member','Switch to the participant app','member']];
 function renderRail() {
   $('rolepick').innerHTML = `<button data-act="role" data-arg="member" aria-pressed="${S.role==='member'}">${I.users} Member</button><button data-act="role" data-arg="coach" aria-pressed="${S.role==='coach'}">${I.medal} Instructor</button>`;
   $('segwrap').hidden = S.role === 'coach';
