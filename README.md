@@ -11,3 +11,5 @@ Social fitness accountability: join a circle, stake money on showing up, prove e
 - **Custom 75-Day**: build your own 75 Hard / 75 Soft with daily tasks
 
 Open the file in a browser. Use the left-hand rail to switch formats or jump to any step.
+
+Switch **View the app as → Instructor** (or tap "I'm a fitness trainer" on the format screen) to see the instructor side: verification, today's dashboard, posting the daily plan, members at risk with nudges, reviewing flagged proof, earnings and payouts, and launching a new programme.

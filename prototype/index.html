@@ -304,6 +304,45 @@ canvas.fx{position:absolute; inset:0; width:100%; height:100%; pointer-events:no
 .sharecard .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px}
 .sharecard .stats div{background:rgba(255,255,255,.16); border-radius:14px; padding:10px; font-size:11.5px}
 .sharecard .stats b{display:block; font-size:20px; font-family:var(--display)}
+/* instructor */
+.role{display:grid; grid-template-columns:1fr 1fr; gap:6px; background:var(--panel); border:1.5px solid var(--line); padding:5px; border-radius:16px; max-width:420px}
+.role button{padding:11px 10px; border-radius:12px; font-weight:700; font-size:14px; color:var(--muted); display:flex; gap:8px; align-items:center; justify-content:center}
+.role button[aria-pressed="true"]{background:var(--ink); color:var(--surface)}
+.stats3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.stat{background:var(--surface2); border-radius:18px; padding:12px; text-align:left; display:flex; flex-direction:column; gap:2px}
+.stat b{font-family:var(--display); font-size:24px; letter-spacing:-.02em; line-height:1.1}
+.stat span{font-size:12px; color:var(--muted); font-weight:600}
+.stat .pill{align-self:flex-start; margin-top:4px}
+.chart{position:relative; padding-left:34px}
+.chart .gl{position:absolute; left:34px; right:0; border-top:1px dashed var(--line)}
+.chart .gl span{position:absolute; left:-34px; top:-8px; font-size:10.5px; color:var(--muted); width:30px; text-align:right}
+.bars{display:flex; align-items:flex-end; gap:4px; height:130px; position:relative; border-bottom:1px solid var(--line)}
+.bars .col{flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; cursor:default; border-radius:6px}
+.bars .col:hover .b, .bars .col:focus .b{filter:brightness(1.12)}
+.bars .b{width:72%; max-width:28px; background:color-mix(in srgb,var(--seg) 45%,var(--surface2)); border-radius:4px 4px 0 0; min-height:2px}
+.bars .col.hl .b{background:var(--seg)}
+.bars .col.part .b{background:repeating-linear-gradient(135deg,var(--seg) 0 4px,color-mix(in srgb,var(--seg) 55%,var(--surface2)) 4px 8px)}
+.bars .val{font-size:11px; font-weight:700; margin-bottom:3px; color:var(--ink)}
+.xl{display:flex; gap:4px; padding-left:34px; margin-top:6px}
+.xl span{flex:1; text-align:center; font-size:11px; color:var(--muted); font-weight:600}
+.tip{position:absolute; z-index:15; pointer-events:none; background:var(--ink); color:var(--surface); font-size:12px; font-weight:600; padding:6px 9px; border-radius:9px; white-space:nowrap; transform:translate(-50%,-100%); box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.prog{display:flex; align-items:center; gap:12px; padding:12px 0}
+.prog + .prog{border-top:1px solid var(--line)}
+.prog .ph{width:44px; height:44px; border-radius:12px; display:grid; place-items:center; color:#fff; font-weight:800; flex:none; font-family:var(--display)}
+.review{border-radius:20px; background:var(--surface2); overflow:hidden}
+.review .ph{height:130px; position:relative}
+.review .bd{padding:12px 14px; display:flex; flex-direction:column; gap:10px}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.btn.sm{padding:11px 12px; font-size:14px; border-radius:12px}
+.btn.good{background:var(--good); box-shadow:none}
+.vstep{display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; background:var(--surface2); width:100%; text-align:left}
+.vstep .bx{width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:var(--surface); border:1.5px dashed var(--line); flex:none}
+.vstep[aria-pressed="true"] .bx{background:var(--good); border:0; color:#fff}
+textarea{font:inherit; color:inherit; padding:14px 16px; border-radius:14px; border:1.5px solid var(--line); background:var(--surface2); font-size:15px; width:100%; resize:none; min-height:96px}
+textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
+.split{display:flex; height:14px; border-radius:8px; overflow:hidden; gap:2px}
+.pay{display:flex; align-items:center; gap:10px; padding:11px 0}
+.pay + .pay{border-top:1px solid var(--line)}
 @media (prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} }
 </style>
 
@@ -317,12 +356,17 @@ canvas.fx{position:absolute; inset:0; width:100%; height:100%; pointer-events:no
     <p class="lede">A clickable MVP of the FitCircle flow. Pick a challenge format, then tap through the phone or jump to any of the 8 steps. Everything on the phone works: stake, log proof, nudge a friend, settle the Jackpot.</p>
 
     <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="label">View the app as</span>
+      <div class="role" id="rolepick"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px" id="segwrap">
       <span class="label">Challenge format</span>
       <div class="segpick" id="segpick"></div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:10px">
-      <span class="label">The journey · tap a step</span>
+      <span class="label" id="stepslabel">The journey · tap a step</span>
       <ol class="steps" id="steps"></ol>
     </div>
 
@@ -413,6 +457,10 @@ const fresh = () => ({
   coachId:'wanjiru',
   d75:{mode:'soft', tasks:['workout','water','read'], day:23, today:['water']},
   stake:{peer:500, d75:1000}, noStake:false, method:'mpesa', pay:'confirm',
+  role:'member', cFilter:'all', reviewed:{}, planSent:false, cNudged:false,
+  plan:{title:'Tempo run · 5 km', body:'Easy pace, you should be able to talk. Finish with 4 × 100 m strides. Log a photo at the finish.', type:'Run', voice:true},
+  newProg:{name:'Hill Power 5K', weeks:4, fee:1500, cap:40}, verify:{cert:true, id:true, video:false},
+  progs:[{n:'Karura Forest 10K', meta:'Week 3 of 6 · 48 people', st:'Active', c:'good'}, {n:'Hill Power 5K', meta:'Starts 14 Oct · 12 signed up', st:'Enrolling', c:'seg'}],
   logged:false, proof:null, sessType:'Run', boardTab:'board', sheet:null, nudged:{}, flagged:{}, ended:false,
   members:{
     peer:[{n:'Amani', me:1, s:2, st:9, td:0}, {n:'Achieng', s:3, st:14, td:1}, {n:'Njeri', s:3, st:11, td:1}, {n:'Brian', s:2, st:6, td:0}, {n:'Wambui', s:2, st:4, td:1}, {n:'Kevin', s:1, st:0, td:0}],
@@ -483,7 +531,8 @@ V.format = () => `${top('Choose your format')}
   ${Object.entries(SEG).map(([k, s]) => `
     <button class="fmt ${k}" data-act="pickSeg" data-arg="${k}"><span class="tag">${s.tag}</span><span class="ring"></span>
       ${I[s.icon]}<b>${s.name}</b><span>${s.blurb}</span></button>`).join('')}
-  <p class="note" style="justify-content:center">${I.lock}Staking is opt-in. Any challenge can run without money.</p>`;
+  <p class="note" style="justify-content:center">${I.lock}Staking is opt-in. Any challenge can run without money.</p>
+  <button class="link" data-act="trainer">I'm a fitness trainer. Host a challenge →</button>`;
 
 V.setup = () => `${top('New peer group')}
   <div class="field"><label for="f-gname">Group name</label><input id="f-gname" data-bind="peer.name" value="${esc(S.peer.name)}"></div>
@@ -706,8 +755,117 @@ V.win = () => {
     <button class="btn" data-act="again">${I.plus} Start a new circle</button></div>`;
 };
 
+// ---------- instructor side ----------
+const CPEOPLE = [{n:'Mercy',s:5,st:17,td:1},{n:'Dennis',s:4,st:12,td:1},{n:'Joy',s:4,st:10,td:1},{n:'Amani',s:4,st:9,td:0},{n:'Faith',s:4,st:8,td:1},
+  {n:'Brian',s:3,st:5,td:1},{n:'Collins',s:3,st:3,td:0},{n:'Esther',s:2,st:2,td:0},{n:'Wairimu',s:1,st:1,td:0},{n:'Lilian',s:2,st:0,td:0},{n:'Otieno',s:1,st:0,td:0}];
+const FLAGS = [{n:'Collins', by:'Faith', r:'Old photo', note:'Same photo as last Tuesday, same shadows.', t:'Evening run'},
+  {n:'Esther', by:'Dennis', r:'Not a workout', note:'Looks like a walk to the shops.', t:'Tempo run'},
+  {n:'Otieno', by:'Mercy', r:'Someone else', note:'Face not visible, different shoes.', t:'Strides'},
+  {n:'Brian', by:'Joy', r:'Old photo', note:'Timestamp looks edited.', t:'Recovery jog'}];
+const EARN = [['Apr',18000],['May',22500],['Jun',31500],['Jul',36000],['Aug',45000],['Sep',54000]];
+const CHECKINS = [['Mon',44],['Tue',42],['Wed',39],['Thu',31],['Fri',0],['Sat',0],['Sun',0]];
+const atRisk = p => !p.td && p.s <= 2;
+const openFlags = () => FLAGS.filter(f => !S.reviewed[f.n]).length;
+const kfmt = n => n >= 1000 ? (n/1000).toFixed(n % 1000 ? 1 : 0) + 'k' : String(n);
+
+function barChart(rows, {max, ticks, hl, part, tip, label}) {
+  return `<div class="chart" role="img" aria-label="${label}">
+    ${ticks.map(t => `<div class="gl" style="bottom:${t / max * 130}px"><span class="num">${kfmt(t)}</span></div>`).join('')}
+    <div class="bars">${rows.map(([k, v], i) => `<div class="col ${i === hl ? 'hl' : ''} ${i === part ? 'part' : ''}" tabindex="0" data-tip="${tip(k, v, i)}" aria-label="${tip(k, v, i)}">
+      ${i === hl || i === part ? `<span class="val num">${kfmt(v)}</span>` : ''}<span class="b" style="height:${v / max * 100}%"></span></div>`).join('')}</div></div>
+    <div class="xl">${rows.map(([k]) => `<span>${k}</span>`).join('')}</div>`;
+}
+
+V.cVerify = () => { const v = S.verify, all = v.cert && v.id && v.video; return `${top('Become an instructor')}
+  <div><span class="eyebrow">For certified trainers</span><h3 class="big" style="margin-top:6px">Run paid challenges. Keep 70–80% of every fee.</h3>
+    <p class="sub" style="margin-top:8px">Before you go live we check three things. Most trainers are verified within 24 hours.</p></div>
+  ${[['cert','Fitness certification','PDF or photo of your certificate'],['id','National ID or passport','Matched to your M-Pesa name'],['video','60-second demo video','Coach a short session on camera']].map(([k,t,d]) => `
+    <button class="vstep" data-act="vstep" data-arg="${k}" aria-pressed="${v[k]}"><span class="bx">${v[k] ? I.check : I.plus}</span><span class="grow"><b style="display:block">${t}</b><span class="small muted">${v[k] ? 'Uploaded · approved' : d}</span></span></button>`).join('')}
+  <div class="stick"><button class="btn" data-act="verified" ${all ? '' : 'disabled'}>${all ? `${I.shield} Verified. Open my dashboard` : 'Upload the remaining item'}</button></div>`; };
+
+V.cDash = () => {
+  const c = COACHES[0], people = 48, logged = 31, risk = 9;
+  return `<div class="row"><div class="grow"><div class="small muted"><span class="verified">${I.shield}Verified instructor</span></div><div style="font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em">Habari, Wanjiru</div></div>
+    <span class="av" style="background:linear-gradient(135deg,var(--coach),var(--coach2))">W</span></div>
+  <div class="hero"><div class="k">Your earnings · ${c.prog}</div>
+    <div class="v num"><small>KES</small><span data-count="54000">54,000</span></div>
+    <div class="meta"><span class="num">75% of KES 72,000 in entry fees</span><span>Payout Friday via M-Pesa</span></div></div>
+  <div class="stats3">
+    <button class="stat" data-act="cgo" data-arg="cMembers"><b class="num">${logged}<span style="font-size:14px;color:var(--muted)">/${people}</span></b><span>logged today</span></button>
+    <button class="stat" data-act="cfilter" data-arg="risk"><b class="num" style="color:var(--bad)">${S.cNudged ? 0 : risk}</b><span>at risk</span><span class="pill ${S.cNudged ? 'good' : 'bad'}">${S.cNudged ? 'Nudged' : 'Nudge'}</span></button>
+    <button class="stat" data-act="cgo" data-arg="cReview"><b class="num">${openFlags()}</b><span>flags to review</span>${openFlags() ? '<span class="pill warn">Open</span>' : '<span class="pill good">Clear</span>'}</button>
+  </div>
+  <button class="logcta ${S.planSent ? 'done' : ''}" data-act="cgo" data-arg="${S.planSent ? 'cMembers' : 'cPlan'}" style="text-align:left;width:100%">
+    <span class="pulse">${S.planSent ? I.check : I.bell}</span>
+    <span class="grow"><b style="display:block">${S.planSent ? `Today's plan sent: ${esc(S.plan.title)}` : "Post today's plan"}</b>
+      <span class="small muted">${S.planSent ? '48 people got it · 31 have already logged' : 'Your group is waiting. Most people train before 07:00.'}</span></span>${I.arrow}</button>
+  <div class="card"><div class="row" style="margin-bottom:14px"><b class="grow">Check-ins this week</b><span class="small muted">of 48 people</span></div>
+    ${barChart(CHECKINS, {max:48, ticks:[24,48], part:3, label:'Daily check-ins this week', tip:(k,v,i) => i === 3 ? `${k}: ${v} so far today` : i > 3 ? `${k}: upcoming` : `${k}: ${v} of 48 logged`})}</div>
+  <div class="card"><div class="row" style="margin-bottom:2px"><b class="grow">Your programmes</b><button class="link" data-act="cgo" data-arg="cNew">+ New</button></div>
+    ${S.progs.map((p, i) => `<div class="prog"><span class="ph" style="background:linear-gradient(135deg,${['#2B55F5','#0F8FD6','#6A3DF2'][i % 3]},var(--coach2))">${p.n[0]}</span>
+      <div class="grow" style="min-width:0"><b style="display:block">${esc(p.n)}</b><span class="small muted">${p.meta}</span></div><span class="pill ${p.c}">${p.st}</span></div>`).join('')}</div>`;
+};
+
+V.cMembers = () => {
+  const f = S.cFilter, list = CPEOPLE.filter(p => f === 'risk' ? atRisk(p) : f === 'not' ? !p.td : true);
+  const risky = CPEOPLE.filter(atRisk).length;
+  return `<div class="topbar"><h2 style="padding:0">Karura Forest 10K · 48 people</h2></div>
+  <div class="chips">${[['all','Everyone'],['not','Not logged today'],['risk','At risk']].map(([k,l]) => `<button class="chip" data-act="cfilter" data-arg="${k}" aria-pressed="${f===k}">${l}</button>`).join('')}</div>
+  ${f === 'risk' ? `<button class="btn ${S.cNudged ? 'ghost' : ''}" data-act="nudgeAll" ${S.cNudged ? 'disabled' : ''}>${I.hand} ${S.cNudged ? 'Everyone at risk was nudged' : `Nudge all ${risky} shown`}</button>` : ''}
+  <div class="card"><div class="lb">${list.map(p => `<div class="it">${av(p.n)}
+    <div class="grow" style="min-width:0"><div class="name">${esc(p.n)}</div><div class="mini"><i style="width:${p.s / 5 * 100}%"></i></div>
+      <div class="small muted num" style="margin-top:3px">${p.s} of 5 this week${p.st ? ` · ${p.st}-day streak` : ''}</div></div>
+    ${p.td ? '<span class="pill good">Logged today</span>' : atRisk(p) ? (S.cNudged || S.nudged['c' + p.n] ? '<span class="pill seg">Nudged</span>' : `<button class="nudge" data-act="cnudge" data-arg="${p.n}">Nudge</button>`) : '<span class="pill warn">Not yet</span>'}</div>`).join('') || '<p class="sub">Nobody here. Nice work.</p>'}</div></div>
+  <p class="note">${I.users}Showing 11 of 48. At risk means 2 or fewer sessions this week and nothing logged today.</p>`;
+};
+
+V.cReview = () => {
+  const open = FLAGS.filter(x => !S.reviewed[x.n]);
+  return `<div class="topbar"><h2 style="padding:0">Review flagged proof</h2></div>
+  <p class="note">${I.shield}Participants flag proof that looks fake. You and the FitCircle team decide. Three upheld flags send an account to review.</p>
+  ${FLAGS.map((x, i) => { const d = S.reviewed[x.n]; return `<article class="review"><div class="ph"><div class="sample" style="filter:hue-rotate(${i * 40}deg) saturate(.8)"></div>
+      <span style="position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;padding:4px 9px;border-radius:9px;font-size:12px;font-weight:700">${x.t} · Today</span></div>
+    <div class="bd"><div class="row">${av(x.n, 30)}<b class="grow">${x.n}</b><span class="pill warn">${I.flag.replace('class="ic"','class="ic" style="width:12px;height:12px"')}${x.r}</span></div>
+      <span class="small muted">Flagged by ${x.by}: “${x.note}”</span>
+      ${d ? `<span class="pill ${d === 'ok' ? 'good' : 'bad'}" style="align-self:flex-start">${d === 'ok' ? 'Approved · session counts' : 'Rejected · no credit, flag upheld'}</span>`
+          : `<div class="two"><button class="btn sm good" data-act="review" data-arg="${x.n}|ok">${I.check} Approve</button><button class="btn sm dark" data-act="review" data-arg="${x.n}|no">Reject</button></div>`}</div></article>`; }).join('')}
+  ${open.length ? '' : `<p class="note" style="justify-content:center">${I.check}Queue clear. Your group sees fair results.</p>`}`;
+};
+
+V.cEarn = () => {
+  const c = COACHES[0], fee = c.fee, you = fee * c.cut / 100;
+  return `<div class="topbar"><h2 style="padding:0">Earnings</h2></div>
+  <div class="hero"><div class="k">Earned since April</div><div class="v num"><small>KES</small><span data-count="207000">207,000</span></div>
+    <div class="meta"><span>6 cohorts · 154 people coached</span><span>Next payout Fri 3 Oct</span></div></div>
+  <div class="card"><div class="row" style="margin-bottom:14px"><b class="grow">Monthly earnings (KES)</b><span class="pill good">+20% vs Aug</span></div>
+    ${barChart(EARN, {max:60000, ticks:[20000,40000,60000], hl:5, label:'Monthly earnings from April to September', tip:(k,v) => `${k}: KES ${fmt(v)}`})}</div>
+  <div class="card"><b style="display:block;margin-bottom:10px">Every KES ${fmt(fee)} entry fee</b>
+    <div class="split"><i style="width:${c.cut}%;background:var(--coach)"></i><i style="flex:1;background:var(--gold)"></i></div>
+    <div class="row small num" style="margin-top:8px"><span><b>KES ${fmt(you)}</b> to you (${c.cut}%)</span><span class="muted" style="margin-left:auto">KES ${fmt(fee - you)} FitCircle</span></div></div>
+  <div class="card"><b style="display:block;margin-bottom:2px">Payouts to M-Pesa ${esc(S.user.phone)}</b>
+    ${[['Fri 3 Oct','Karura 10K · week 3',18000,'Scheduled','seg'],['Fri 26 Sep','Karura 10K · week 2',18000,'Paid','good'],['Fri 19 Sep','Karura 10K · week 1',18000,'Paid','good'],['Fri 29 Aug','Sunrise Strength',45000,'Paid','good']]
+      .map(([d,w,a,s,c]) => `<div class="pay"><div class="grow"><b style="display:block;font-size:14px">${d}</b><span class="small muted">${w}</span></div><b class="num">KES ${fmt(a)}</b><span class="pill ${c}">${s}</span></div>`).join('')}</div>`;
+};
+
+V.cPlan = () => `${top("Today's plan")}
+  <div class="field"><label for="f-ptitle">Session</label><input id="f-ptitle" data-bind="plan.title" value="${esc(S.plan.title)}"></div>
+  <div class="field"><label for="f-pbody">Instructions</label><textarea id="f-pbody" data-bind="plan.body">${esc(S.plan.body)}</textarea></div>
+  <div class="field"><label>Type</label><div class="chips">${['Run','Strength','HIIT','Mobility','Rest day'].map(t => `<button class="chip" data-act="ptype" data-arg="${t}" aria-pressed="${S.plan.type===t}">${t}</button>`).join('')}</div></div>
+  <button class="switch" data-act="pvoice" role="switch" aria-checked="${S.plan.voice}"><span class="grow"><b style="display:block;font-size:14.5px">Attach a voice note</b><span class="small muted">People who get a voice note log 23% more often.</span></span><span class="tg"></span></button>
+  <div class="stick"><button class="btn" data-act="sendPlan">${I.arrow} Send to 48 people</button></div>`;
+
+V.cNew = () => { const p = S.newProg, full = p.fee * p.cap * .75; return `${top('New programme')}
+  <div class="field"><label for="f-nname">Programme name</label><input id="f-nname" data-bind="newProg.name" value="${esc(p.name)}"></div>
+  <div class="field"><label>Length</label><div class="seg-ctrl">${[1,4,6,8,12].map(n => `<button data-act="np" data-arg="weeks|${n}" aria-pressed="${p.weeks===n}">${n} wk</button>`).join('')}</div></div>
+  <div class="field"><label>Entry fee (KES)</label><div class="amounts">${[1000,1500,2000,2500].map(n => `<button class="num" data-act="np" data-arg="fee|${n}" aria-pressed="${p.fee===n}">${fmt(n)}</button>`).join('')}</div></div>
+  <div class="field"><label>Places</label><div class="seg-ctrl">${[20,40,60].map(n => `<button data-act="np" data-arg="cap|${n}" aria-pressed="${p.cap===n}">${n}</button>`).join('')}</div></div>
+  <div class="hero"><div class="k">If it fills up, you earn</div><div class="v num"><small>KES</small>${fmt(full)}</div>
+    <div class="meta num"><span>${p.cap} × KES ${fmt(p.fee)} × 75%</span><span>over ${p.weeks} week${p.weeks > 1 ? 's' : ''}</span></div></div>
+  <div class="stick"><button class="btn" data-act="publishProg">Publish programme</button></div>`; };
+
 // ---------- render ----------
 const TAB_SCREENS = ['home','board','alerts'];
+const COACH_TABS = ['cDash','cMembers','cReview','cEarn'];
 function render(anim = true) {
   const ph = $('phone');
   ph.className = `phone seg-${S.seg}`;
@@ -718,8 +876,11 @@ function render(anim = true) {
   sc.classList.toggle('welcome', S.screen === 'welcome');
   if (anim) { sc.classList.remove('enter'); void sc.offsetWidth; sc.classList.add('enter'); sc.scrollTop = 0; }
   const tb = $('tabbar');
-  tb.hidden = !TAB_SCREENS.includes(S.screen);
-  if (!tb.hidden) tb.innerHTML = [
+  tb.hidden = !TAB_SCREENS.includes(S.screen) && !COACH_TABS.includes(S.screen);
+  if (COACH_TABS.includes(S.screen)) tb.innerHTML = [['cDash', I.home, 'Today'], ['cMembers', I.users, 'Members'], ['cPlan'], ['cReview', I.flag, 'Review'], ['cEarn', I.coin, 'Earnings']]
+    .map(([k, ic, l]) => !ic ? `<button data-act="cgo" data-arg="cPlan" aria-label="Post today's plan"><span class="fab">${I.plus}</span></button>`
+      : `<button data-act="ctab" data-arg="${k}" ${S.screen === k ? 'aria-current="page"' : ''}><span style="position:relative">${ic}${k === 'cReview' && openFlags() ? `<span class="badge">${openFlags()}</span>` : ''}</span>${l}</button>`).join('');
+  else if (!tb.hidden) tb.innerHTML = [
     ['home', I.home, 'Home'], ['board', I.users, 'Circle'], ['log', null, 'Log'], ['alerts', I.bell, 'Alerts'], ['end', I.trophy, 'Result']
   ].map(([k, ic, l]) => k === 'log'
     ? `<button data-act="go" data-arg="log" aria-label="Log a session"><span class="fab">${I.camera}</span></button>`
@@ -749,7 +910,16 @@ function renderLayer() {
     <div class="card row">${av('Achieng')}<span class="grow small"><b>Achieng</b> invited you to <b>Ofisi Movers</b>. 5 people · 3 sessions a week · KES 500 stake.</span></div>
     <button class="btn" data-act="acceptInvite">Join the group ${I.arrow}</button></div></div>`;
 }
+const CSTEPS = [['Become an instructor','Certification, ID, demo video','cVerify'],['Dashboard','Today at a glance','cDash'],["Post today's plan",'Morning message to the group','cPlan'],['Members','Who is on track, who is slipping','cMembers'],
+  ['Review proof','Approve or reject flags','cReview'],['Earnings','Your 70–80% share, paid weekly','cEarn'],['New programme','Launch the next cohort','cNew'],['See it as a member','Switch to the participant app','member']];
 function renderRail() {
+  $('rolepick').innerHTML = `<button data-act="role" data-arg="member" aria-pressed="${S.role==='member'}">${I.users} Member</button><button data-act="role" data-arg="coach" aria-pressed="${S.role==='coach'}">${I.medal} Instructor</button>`;
+  $('segwrap').hidden = S.role === 'coach';
+  $('stepslabel').textContent = S.role === 'coach' ? 'Instructor tools · tap a screen' : 'The journey · tap a step';
+  if (S.role === 'coach') {
+    $('steps').innerHTML = CSTEPS.map(([t, d, k], i) => `<li class="${S.screen === k ? 'on' : ''}"><button data-act="cstep" data-arg="${k}"><span class="n num">${i+1}</span><span class="t"><b>${t}</b><span>${d}</span></span></button></li>`).join('');
+    return;
+  }
   $('segpick').innerHTML = Object.entries(SEG).map(([k, s]) => `<button data-act="railSeg" data-arg="${k}" aria-pressed="${S.seg===k}" style="--c:var(--${k});--c2:var(--${k === 'd75' ? 'd75b' : k + '2'})"><span class="dot"></span><strong>${s.short}</strong><span>${k==='peer'?'Group stakes':k==='coach'?'Paid programmes':'Your own rules'}</span></button>`).join('');
   const cur = STEP_OF[S.screen];
   $('steps').innerHTML = STEPS.map(([t, d], i) => `<li class="${i === cur ? 'on' : i < cur ? 'past' : ''}"><button data-act="step" data-arg="${i}"><span class="n num">${i+1}</span><span class="t"><b>${t}</b><span>${d}</span></span></button></li>`).join('');
@@ -841,9 +1011,28 @@ const A = {
   reason: r => { S.sheet.reason = r; renderLayer(); },
   flagConfirm: () => { const n = S.sheet.who; S.flagged[n] = 1; S.sheet = null; render(false); toast(`Flag sent. ${n}'s session is under review.`); },
   closeSheet: () => { S.sheet = null; renderLayer(); },
-  skipEnd: () => { S.logged = true; S.hist = ['home']; go('end', false); if (staked() && S.seg !== 'coach') setTimeout(confetti, 900); },
+  skipEnd: () => { S.role = 'member'; S.logged = true; S.hist = ['home']; go('end', false); if (staked() && S.seg !== 'coach') setTimeout(confetti, 900); },
   copy: txt => { const done = () => toast('Copied to clipboard');
     try { navigator.clipboard.writeText(txt).then(done, () => toast(txt)); } catch (e) { toast(txt); } },
+  trainer: () => { S.role = 'coach'; S.seg = 'coach'; go('cVerify'); },
+  role: r => { if (r === S.role) return; S.role = r; S.hist = [];
+    if (r === 'coach') { S.seg = 'coach'; go('cDash', false); } else { S.screen = 'welcome'; render(); } },
+  cstep: k => { if (k === 'member') return A.role('member'); S.role = 'coach'; S.seg = 'coach';
+    if (k === 'cPlan' || k === 'cNew' || k === 'cVerify') S.hist = ['cDash']; else S.hist = []; go(k, false); },
+  cgo: k => go(k), ctab: k => { S.hist = []; go(k, false); },
+  cfilter: f => { S.cFilter = f; if (S.screen !== 'cMembers') { S.hist = []; go('cMembers', false); } else render(false); },
+  cnudge: n => { S.nudged['c' + n] = 1; render(false); toast(`Nudge sent to ${n}.`); },
+  nudgeAll: () => { S.cNudged = true; render(false); toast('Nudged everyone at risk. They get a push with your message.'); },
+  review: a => { const [n, d] = a.split('|'); S.reviewed[n] = d; render(false);
+    toast(d === 'ok' ? `${n}'s session counts. The flag was dismissed.` : `${n}'s session won't count. The flag is upheld.`); },
+  vstep: k => { S.verify[k] = true; render(false); },
+  verified: () => { S.hist = []; go('cDash', false); confetti(); toast('You are verified. Welcome to FitCircle, Coach.'); },
+  ptype: t => { S.plan.type = t; render(false); },
+  pvoice: () => { S.plan.voice = !S.plan.voice; render(false); },
+  sendPlan: () => { S.planSent = true; S.hist = []; go('cDash', false); toast(`Sent “${S.plan.title}” to 48 people.`); },
+  np: a => { const [k, v] = a.split('|'); S.newProg[k] = +v; render(false); },
+  publishProg: () => { const p = S.newProg; S.progs.push({n:p.name, meta:`${p.weeks} weeks · KES ${fmt(p.fee)} · 0 of ${p.cap} places`, st:'Live', c:'seg'});
+    S.hist = []; go('cDash', false); confetti(); toast(`${p.name} is live. Share the link to fill it.`); },
   again: () => { const keep = {user:S.user, seg:S.seg}; S = Object.assign(fresh(), keep); S.hist = []; go('format', false); },
 };
 document.addEventListener('click', e => {
@@ -860,6 +1049,18 @@ document.addEventListener('change', e => {
   const f = e.target.files[0]; S.proofVideo = f.type.startsWith('video');
   S.proof = URL.createObjectURL(f); render(false);
 });
+const phone = $('phone');
+const showTip = el => { hideTip(); const t = document.createElement('div'); t.className = 'tip'; t.textContent = el.dataset.tip;
+  const pr = phone.getBoundingClientRect(), r = el.getBoundingClientRect();
+  t.style.top = (r.top - pr.top + r.height - (el.querySelector('.b')?.offsetHeight || 0) - 22) + 'px';
+  phone.appendChild(t); const half = t.offsetWidth / 2 + 16;
+  t.style.left = Math.min(pr.width - half, Math.max(half, r.left - pr.left + r.width / 2)) + 'px'; };
+const hideTip = () => phone.querySelectorAll('.tip').forEach(t => t.remove());
+phone.addEventListener('mouseover', e => { const el = e.target.closest('[data-tip]'); el ? showTip(el) : hideTip(); });
+phone.addEventListener('mouseleave', hideTip);
+phone.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); });
+phone.addEventListener('focusout', hideTip);
+$('screen').addEventListener('scroll', hideTip);
 render(false);
 })();
 </script>
