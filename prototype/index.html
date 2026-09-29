@@ -1,0 +1,865 @@
+<title>FitCircle Prototype</title>
+<meta name="description" content="Clickable MVP of FitCircle: social fitness accountability with Peer Groups, Instructor Challenges and Custom 75-Day.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a step rail on the left walks the 8-step journey; a live phone on the right runs it.
+   Each challenge format owns a colour: Peer = flame, Instructor = cobalt, 75-Day = emerald. Gold = money in the Jackpot. */
+:root{
+  --bg:#EFECF5; --panel:#FAF9FD; --surface:#FFFFFF; --surface2:#F4F2F9; --ink:#191630; --muted:#6A6684; --line:#E2DEEC;
+  --peer:#F2481F; --peer2:#FF9A1F;
+  --coach:#2B55F5; --coach2:#12B0FF;
+  --d75:#0A9A6B; --d75b:#86C923;
+  --gold:#F5A800; --good:#12A150; --warn:#E08A00; --bad:#D93A3A;
+  --frame:#15122A;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0C0A17; --panel:#141126; --surface:#16132A; --surface2:#1F1B38; --ink:#F3F1FF; --muted:#A5A0C2; --line:#2D2848;
+  --peer:#FF6A3D; --peer2:#FFA63A; --coach:#5B7DFF; --coach2:#34C0FF; --d75:#1DBA85; --d75b:#9BDB3A;
+  --gold:#FFC23A; --good:#35C874; --warn:#FFB02E; --bad:#FF6060; --frame:#000000; color-scheme:dark; }}
+:root[data-theme="dark"]{
+  --bg:#0C0A17; --panel:#141126; --surface:#16132A; --surface2:#1F1B38; --ink:#F3F1FF; --muted:#A5A0C2; --line:#2D2848;
+  --peer:#FF6A3D; --peer2:#FFA63A; --coach:#5B7DFF; --coach2:#34C0FF; --d75:#1DBA85; --d75b:#9BDB3A;
+  --gold:#FFC23A; --good:#35C874; --warn:#FFB02E; --bad:#FF6060; --frame:#000000; color-scheme:dark; }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.screen > *{flex-shrink:0}
+html,body{min-height:100%}
+body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:15px; line-height:1.45; padding:28px 16px; -webkit-font-smoothing:antialiased}
+button{font:inherit; color:inherit; cursor:pointer; border:0; background:none}
+input{font:inherit; color:inherit}
+:focus-visible{outline:2.5px solid var(--seg, var(--coach)); outline-offset:2px; border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+
+.stage{max-width:1100px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:48px; align-items:start}
+@media (max-width:900px){ .stage{grid-template-columns:minmax(0,1fr); gap:28px} .rail{order:2} .phone-wrap{order:1} }
+
+/* ---------- Rail ---------- */
+.rail{display:flex; flex-direction:column; gap:28px; padding-top:8px; min-width:0}
+.brand{display:flex; align-items:center; gap:12px}
+.brand b{font-family:var(--display); font-size:26px; font-weight:800; letter-spacing:-.02em}
+.brand small{display:block; color:var(--muted); font-size:13px}
+.rail h1{font-family:var(--display); font-weight:800; font-size:clamp(34px,4.6vw,54px); line-height:1; letter-spacing:-.035em; margin:0; text-wrap:balance}
+.rail h1 em{font-style:normal; background:linear-gradient(90deg,var(--peer),var(--gold) 45%,var(--d75) 75%,var(--coach)); -webkit-background-clip:text; background-clip:text; color:transparent}
+.rail .lede{color:var(--muted); max-width:52ch; margin:0; font-size:16px}
+.label{font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted)}
+.segpick{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+.segpick button{text-align:left; padding:12px 12px 13px; border-radius:14px; background:var(--panel); border:1.5px solid var(--line); display:flex; flex-direction:column; gap:3px; transition:border-color .2s, transform .2s}
+.segpick button:hover{transform:translateY(-2px)}
+.segpick button[aria-pressed="true"]{border-color:var(--c); box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+.segpick .dot{width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,var(--c),var(--c2))}
+.segpick strong{font-size:14px}
+.segpick span{font-size:12px; color:var(--muted)}
+.steps{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 14px}
+@media (max-width:480px){ .steps{grid-template-columns:minmax(0,1fr)} }
+.steps button{width:100%; display:flex; gap:12px; align-items:flex-start; text-align:left; padding:10px 12px; border-radius:12px; transition:background .2s}
+.steps button:hover{background:var(--panel)}
+.steps .n{flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:13px; border:1.5px solid var(--line); background:var(--panel)}
+.steps .t{min-width:0}
+.steps .t b{display:block; font-size:14px}
+.steps .t span{font-size:12.5px; color:var(--muted)}
+.steps li.on button{background:var(--panel)}
+.steps li.on .n{background:var(--seg); border-color:var(--seg); color:#fff}
+.steps li.past .n{border-color:var(--seg); color:var(--seg)}
+.demo{display:flex; flex-wrap:wrap; gap:8px}
+.chipbtn{padding:8px 13px; border-radius:999px; border:1.5px solid var(--line); background:var(--panel); font-size:13px; font-weight:600}
+.chipbtn:hover{border-color:var(--seg)}
+.rules{font-size:13px; color:var(--muted); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 18px; margin:0; padding:0; list-style:none}
+.rules li::before{content:"· "; color:var(--seg); font-weight:800}
+@media (max-width:480px){ .rules{grid-template-columns:minmax(0,1fr)} }
+
+/* ---------- Phone ---------- */
+.phone-wrap{position:sticky; top:calc(env(safe-area-inset-top,0px) + 20px); display:flex; justify-content:center}
+.phone{--seg:var(--peer); --seg2:var(--peer2);
+  width:100%; max-width:390px; height:min(812px, calc(100dvh - 48px)); min-height:640px; background:var(--surface); border-radius:46px;
+  border:10px solid var(--frame); box-shadow:0 30px 70px -20px color-mix(in srgb,var(--seg) 45%,transparent), 0 10px 30px -10px rgba(0,0,0,.35);
+  position:relative; overflow:hidden; display:flex; flex-direction:column; transition:box-shadow .5s}
+@media (max-width:480px){ .phone{border-width:7px; border-radius:36px; height:760px} .phone-wrap{position:static} }
+.seg-peer{--seg:var(--peer); --seg2:var(--peer2)}
+.seg-coach{--seg:var(--coach); --seg2:var(--coach2)}
+.seg-d75{--seg:var(--d75); --seg2:var(--d75b)}
+body.seg-peer, body.seg-coach, body.seg-d75{}
+.phone{--soft:color-mix(in srgb,var(--seg) 12%,var(--surface))}
+.statusbar{flex:none; height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 26px 0 30px; font-weight:700; font-size:14px; position:relative; z-index:3}
+.statusbar .island{position:absolute; left:50%; top:9px; transform:translateX(-50%); width:108px; height:28px; background:var(--frame); border-radius:20px}
+.statusbar .sig{display:flex; gap:5px; align-items:center}
+.statusbar .sig i{display:block; width:3px; background:currentColor; border-radius:2px}
+.screen{flex:1; overflow-y:auto; overflow-x:hidden; padding:6px 20px 28px; display:flex; flex-direction:column; gap:18px; scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.screen.enter{animation:enter .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes enter{from{opacity:.001; transform:translateX(18px)}}
+
+.topbar{display:flex; align-items:center; gap:10px; min-height:36px}
+.topbar h2{flex:1; margin:0; font-size:17px; font-weight:700; text-align:center; padding-right:36px}
+.iconbtn{width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:var(--surface2); flex:none}
+.iconbtn svg{width:19px; height:19px}
+.ic{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none}
+h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spacing:-.03em; margin:0; font-weight:800; text-wrap:balance}
+.sub{color:var(--muted); margin:0; font-size:14.5px}
+.eyebrow{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--seg)}
+
+.btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:16px 20px; border-radius:16px; font-weight:700; font-size:16px;
+  background:linear-gradient(135deg,var(--seg),var(--seg2)); color:#fff; box-shadow:0 10px 24px -10px var(--seg); transition:transform .15s, filter .15s}
+.btn:hover{filter:brightness(1.05)} .btn:active{transform:scale(.98)}
+.btn.ghost{background:var(--surface2); color:var(--ink); box-shadow:none}
+.btn.dark{background:var(--ink); color:var(--surface); box-shadow:none}
+.btn[disabled]{opacity:.45; pointer-events:none}
+.stick{margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:8px}
+.link{color:var(--seg); font-weight:700; font-size:14px; text-align:center}
+
+.field{display:flex; flex-direction:column; gap:6px}
+.field label{font-size:13px; font-weight:600; color:var(--muted)}
+.field input{padding:14px 16px; border-radius:14px; border:1.5px solid var(--line); background:var(--surface2); font-size:16px; width:100%}
+.field input:focus{outline:none; border-color:var(--seg); background:var(--surface)}
+.err{color:var(--bad); font-size:13px; font-weight:600}
+.note{font-size:12.5px; color:var(--muted); display:flex; gap:8px; align-items:flex-start}
+.note .ic{width:16px; height:16px; margin-top:1px; color:var(--seg)}
+
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{padding:9px 14px; border-radius:999px; background:var(--surface2); font-weight:600; font-size:14px; border:1.5px solid transparent; transition:all .15s}
+.chip[aria-pressed="true"]{background:var(--soft); border-color:var(--seg); color:var(--seg)}
+.seg-ctrl{display:grid; grid-auto-flow:column; grid-auto-columns:1fr; background:var(--surface2); padding:4px; border-radius:14px; gap:4px}
+.seg-ctrl button{padding:10px 6px; border-radius:11px; font-weight:700; font-size:14px; color:var(--muted)}
+.seg-ctrl button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+.card{background:var(--surface2); border-radius:20px; padding:16px}
+.row{display:flex; align-items:center; gap:12px}
+.row .grow{flex:1; min-width:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.pill{display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap}
+.pill.good{background:color-mix(in srgb,var(--good) 15%,transparent); color:var(--good)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 16%,transparent); color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 14%,transparent); color:var(--bad)}
+.pill.seg{background:var(--soft); color:var(--seg)}
+.pill.gold{background:color-mix(in srgb,var(--gold) 18%,transparent); color:color-mix(in srgb,var(--gold) 70%,var(--ink))}
+.av{width:38px; height:38px; border-radius:50%; display:grid; place-items:center; font-weight:800; color:#fff; flex:none; font-size:14px}
+
+/* welcome */
+.welcome{background:radial-gradient(120% 70% at 50% 0%, color-mix(in srgb,var(--peer) 22%,var(--surface)), var(--surface) 60%)}
+.orbit{position:relative; height:250px; display:grid; place-items:center; margin-top:4px}
+.orbit .o{position:absolute; width:150px; height:150px; border-radius:50%; mix-blend-mode:multiply; opacity:.9; animation:float 6s ease-in-out infinite}
+:root[data-theme="dark"] .orbit .o{mix-blend-mode:screen}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .orbit .o{mix-blend-mode:screen} }
+.orbit .o1{background:linear-gradient(135deg,var(--peer),var(--peer2)); transform:translate(-44px,-26px)}
+.orbit .o2{background:linear-gradient(135deg,var(--coach),var(--coach2)); transform:translate(44px,-26px); animation-delay:-2s}
+.orbit .o3{background:linear-gradient(135deg,var(--d75),var(--d75b)); transform:translate(0,48px); animation-delay:-4s}
+@keyframes float{50%{margin-top:-14px}}
+.orbit .eye{position:relative; z-index:2; background:var(--surface); border-radius:999px; padding:8px 14px; font-weight:800; font-size:13px; box-shadow:0 6px 20px rgba(0,0,0,.15); display:flex; gap:8px; align-items:center}
+.live{width:8px; height:8px; border-radius:50%; background:var(--bad); animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.3}}
+
+/* format cards */
+.fmt{position:relative; display:flex; flex-direction:column; gap:6px; text-align:left; border-radius:22px; padding:18px 18px 18px; color:#fff; overflow:hidden; transition:transform .2s}
+.fmt:hover{transform:translateY(-3px) rotate(-.4deg)}
+.fmt.peer{background:linear-gradient(135deg,var(--peer),var(--peer2))}
+.fmt.coach{background:linear-gradient(135deg,var(--coach),var(--coach2))}
+.fmt.d75{background:linear-gradient(135deg,var(--d75),var(--d75b))}
+.fmt b{font-family:var(--display); font-size:22px; letter-spacing:-.02em}
+.fmt span{font-size:13.5px; opacity:.92; max-width:30ch}
+.fmt .tag{position:absolute; right:14px; top:14px; background:rgba(255,255,255,.22); padding:4px 9px; border-radius:999px; font-size:11px; font-weight:700}
+.fmt .ring{position:absolute; right:-30px; bottom:-40px; width:120px; height:120px; border-radius:50%; border:14px solid rgba(255,255,255,.18)}
+
+/* hero */
+.hero{position:relative; border-radius:26px; padding:20px; color:#fff; background:linear-gradient(140deg,var(--seg),var(--seg2)); overflow:hidden; box-shadow:0 18px 36px -18px var(--seg)}
+.hero::after{content:""; position:absolute; right:-50px; top:-50px; width:170px; height:170px; border-radius:50%; border:22px solid rgba(255,255,255,.13)}
+.hero .k{font-size:12px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; opacity:.9}
+.hero .v{font-family:var(--display); font-size:44px; font-weight:800; letter-spacing:-.035em; line-height:1; margin:6px 0 4px}
+.hero .v small{font-size:18px; letter-spacing:0; margin-right:4px; opacity:.85}
+.hero .meta{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; opacity:.95}
+.hero .bar{height:8px; background:rgba(255,255,255,.25); border-radius:9px; margin-top:14px; overflow:hidden}
+.hero .bar i{display:block; height:100%; background:#fff; border-radius:9px; transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.coin{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--gold); box-shadow:0 0 0 2px rgba(255,255,255,.5)}
+
+.week{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; text-align:center}
+.week div{display:flex; flex-direction:column; gap:6px; align-items:center; font-size:11.5px; color:var(--muted); font-weight:600}
+.week i{width:32px; height:32px; border-radius:50%; background:var(--surface); border:1.5px dashed var(--line); display:grid; place-items:center}
+.week i.done{background:var(--seg); border:0; color:#fff}
+.week i.today{border:2px solid var(--seg); border-style:solid}
+.week i .ic{width:16px; height:16px}
+
+.logcta{display:flex; align-items:center; gap:14px; padding:14px; border-radius:20px; background:var(--soft); border:1.5px solid color-mix(in srgb,var(--seg) 35%,transparent)}
+.logcta .pulse{width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,var(--seg),var(--seg2)); color:#fff; display:grid; place-items:center; flex:none; position:relative}
+.logcta .pulse::before{content:""; position:absolute; inset:-6px; border-radius:50%; border:2px solid var(--seg); animation:ping 1.8s infinite; opacity:0}
+@keyframes ping{0%{transform:scale(.8); opacity:.8} 100%{transform:scale(1.35); opacity:0}}
+.logcta.done{background:color-mix(in srgb,var(--good) 12%,var(--surface)); border-color:color-mix(in srgb,var(--good) 40%,transparent)}
+.logcta.done .pulse{background:var(--good)} .logcta.done .pulse::before{display:none}
+
+.lb{display:flex; flex-direction:column; gap:4px}
+.lb .it{display:flex; align-items:center; gap:11px; padding:10px 4px}
+.lb .it + .it{border-top:1px solid var(--line)}
+.lb .rank{width:18px; font-weight:800; color:var(--muted); font-size:13px; text-align:center}
+.lb .name{font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lb .me .name{color:var(--seg)}
+.mini{height:5px; background:var(--line); border-radius:5px; margin-top:6px; overflow:hidden}
+.mini i{display:block; height:100%; background:var(--seg); border-radius:5px}
+.nudge{padding:7px 11px; border-radius:999px; background:var(--ink); color:var(--surface); font-weight:700; font-size:12px}
+.nudge.sent{background:var(--surface2); color:var(--muted)}
+
+.grid75{display:grid; grid-template-columns:repeat(15,1fr); gap:4px}
+.grid75 i{aspect-ratio:1; border-radius:4px; background:var(--line)}
+.grid75 i.d{background:var(--seg)}
+.grid75 i.t{background:transparent; outline:2px solid var(--seg); outline-offset:-2px; animation:blink 1.6s infinite}
+.tasks{display:flex; flex-direction:column; gap:8px}
+.task{display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; background:var(--surface); text-align:left; width:100%; border:1.5px solid var(--line); font-weight:600}
+.task .bx{width:24px; height:24px; border-radius:8px; border:2px solid var(--line); display:grid; place-items:center; flex:none; transition:all .2s}
+.task .bx .ic{width:15px; height:15px; opacity:0}
+.task[aria-pressed="true"] .bx{background:var(--seg); border-color:var(--seg); color:#fff}
+.task[aria-pressed="true"] .bx .ic{opacity:1}
+.task[aria-pressed="true"]{border-color:color-mix(in srgb,var(--seg) 40%,transparent)}
+.task small{margin-left:auto; color:var(--muted); font-weight:500}
+
+.coachcard{display:flex; gap:14px; padding:14px; border-radius:20px; background:var(--surface2); text-align:left; width:100%; transition:transform .15s}
+.coachcard:hover{transform:translateY(-2px)}
+.coachcard .ph{width:64px; height:64px; border-radius:16px; flex:none; display:grid; place-items:center; color:#fff; font-family:var(--display); font-weight:800; font-size:22px}
+.coachcard b{display:block; font-size:15px; line-height:1.2}
+.verified{display:inline-flex; align-items:center; gap:3px; color:var(--coach); font-size:12px; font-weight:700}
+.verified .ic{width:14px; height:14px}
+
+.upload{position:relative; border:2px dashed color-mix(in srgb,var(--seg) 45%,var(--line)); border-radius:24px; min-height:250px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:20px; background:var(--soft); overflow:hidden}
+.upload input{position:absolute; inset:0; opacity:0; cursor:pointer}
+.upload .cam{width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,var(--seg),var(--seg2)); color:#fff; display:grid; place-items:center}
+.upload .cam .ic{width:28px; height:28px}
+.upload img,.upload video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.upload .stamp{position:absolute; left:12px; bottom:12px; background:rgba(0,0,0,.6); color:#fff; padding:6px 10px; border-radius:10px; font-size:12px; font-weight:700; z-index:2}
+.sample{position:absolute; inset:0; background:
+  radial-gradient(circle at 70% 30%, rgba(255,255,255,.35) 0 18%, transparent 19%),
+  linear-gradient(160deg,var(--seg2),var(--seg) 60%, color-mix(in srgb,var(--seg) 60%,#000))}
+.sample::after{content:""; position:absolute; left:18%; right:18%; bottom:0; height:46%; background:rgba(0,0,0,.28); border-radius:50% 50% 0 0}
+
+.feed{display:flex; flex-direction:column; gap:14px}
+.post{border-radius:20px; background:var(--surface2); overflow:hidden}
+.post .ph{height:150px; position:relative}
+.post .bd{padding:12px 14px; display:flex; flex-direction:column; gap:6px}
+
+.notif{display:flex; gap:12px; padding:14px; border-radius:18px; background:var(--surface2)}
+.notif .nic{width:38px; height:38px; border-radius:12px; display:grid; place-items:center; flex:none; color:#fff}
+.notif b{font-size:14px}
+.notif p{margin:2px 0 0; font-size:13.5px; color:var(--muted)}
+.notif time{font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap}
+
+.tabbar{flex:none; display:grid; grid-template-columns:repeat(5,1fr); align-items:center; padding:8px 10px 18px; border-top:1px solid var(--line); background:var(--surface); position:relative; z-index:3}
+.tabbar button{display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:700; color:var(--muted); padding:4px 0}
+.tabbar button[aria-current="page"]{color:var(--seg)}
+.tabbar .fab{width:56px; height:56px; margin:-26px auto 0; border-radius:50%; background:linear-gradient(135deg,var(--seg),var(--seg2)); color:#fff; box-shadow:0 10px 22px -8px var(--seg); display:grid; place-items:center}
+.tabbar .fab .ic{width:26px; height:26px}
+.badge{position:absolute; top:-3px; right:-7px; min-width:17px; height:17px; border-radius:9px; background:var(--bad); color:#fff; font-size:10.5px; display:grid; place-items:center; padding:0 4px}
+
+/* stake */
+.amounts{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+.amounts button{padding:14px 4px; border-radius:14px; background:var(--surface2); font-weight:800; font-size:15px; border:2px solid transparent}
+.amounts button[aria-pressed="true"]{border-color:var(--gold); background:color-mix(in srgb,var(--gold) 14%,var(--surface))}
+.amounts small{display:block; font-size:10.5px; color:var(--muted); font-weight:600}
+.switch{display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; background:var(--surface2); width:100%; text-align:left}
+.switch .tg{width:46px; height:28px; border-radius:20px; background:var(--line); position:relative; flex:none; transition:background .2s}
+.switch .tg::after{content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch[aria-checked="true"] .tg{background:var(--seg)}
+.switch[aria-checked="true"] .tg::after{transform:translateX(18px)}
+.outcomes{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.outcomes div{padding:14px; border-radius:18px; font-size:13px}
+.outcomes b{display:block; font-family:var(--display); font-size:20px; letter-spacing:-.02em; margin-bottom:2px}
+.outcomes .w{background:color-mix(in srgb,var(--good) 13%,var(--surface)); color:var(--ink)}
+.outcomes .w b{color:var(--good)}
+.outcomes .l{background:color-mix(in srgb,var(--bad) 11%,var(--surface))}
+.outcomes .l b{color:var(--bad)}
+.radio{display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; border:1.5px solid var(--line); width:100%; text-align:left}
+.radio[aria-checked="true"]{border-color:var(--seg); background:var(--soft)}
+.radio .rd{width:20px; height:20px; border-radius:50%; border:2px solid var(--line); flex:none}
+.radio[aria-checked="true"] .rd{border:6px solid var(--seg)}
+.pm{width:40px; height:28px; border-radius:7px; display:grid; place-items:center; font-weight:800; font-size:11px; color:#fff; flex:none}
+
+/* sheets, toasts, overlays */
+.scrim{position:absolute; inset:0; background:rgba(10,8,20,.45); z-index:10; animation:fade .2s; display:flex; align-items:flex-end}
+@keyframes fade{from{opacity:0}}
+.sheet{width:100%; background:var(--surface); border-radius:28px 28px 0 0; padding:10px 20px 26px; display:flex; flex-direction:column; gap:14px; animation:up .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes up{from{transform:translateY(100%)}}
+.sheet .grab{width:40px; height:5px; border-radius:5px; background:var(--line); margin:0 auto 4px}
+.spinner{width:54px; height:54px; border-radius:50%; border:5px solid var(--soft); border-top-color:var(--seg); animation:spin .9s linear infinite; margin:6px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:absolute; left:16px; right:16px; top:52px; z-index:12; background:var(--ink); color:var(--surface); padding:12px 16px; border-radius:16px; font-weight:600; font-size:14px; display:flex; gap:10px; align-items:center; animation:drop .35s cubic-bezier(.2,.8,.2,1); box-shadow:0 12px 30px rgba(0,0,0,.25)}
+@keyframes drop{from{transform:translateY(-30px); opacity:0}}
+.celebrate{position:absolute; inset:0; z-index:11; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:30px;
+  background:linear-gradient(160deg,var(--seg),var(--seg2)); color:#fff; animation:fade .25s}
+.celebrate .flame{width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.18); display:grid; place-items:center; animation:pop .6s cubic-bezier(.2,1.6,.4,1)}
+.celebrate .flame .ic{width:56px; height:56px; stroke-width:1.8}
+@keyframes pop{from{transform:scale(.3)}}
+.celebrate .n{font-family:var(--display); font-size:72px; font-weight:800; line-height:.9; letter-spacing:-.04em}
+.celebrate p{margin:0; opacity:.92; max-width:26ch}
+.celebrate .btn{background:#fff; color:var(--seg); margin-top:16px; box-shadow:none}
+canvas.fx{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:20}
+
+/* settlement */
+.settle{display:flex; flex-direction:column; gap:8px}
+.settle .it{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:14px; background:var(--surface2); animation:enter .4s both}
+.settle .amt{margin-left:auto; font-weight:800; font-variant-numeric:tabular-nums}
+.settle .amt.plus{color:var(--good)} .settle .amt.minus{color:var(--bad)}
+.math{display:grid; grid-template-columns:1fr auto; gap:6px 12px; font-size:14px}
+.math .tot{font-weight:800; border-top:1px solid var(--line); padding-top:8px}
+.sharecard{border-radius:26px; padding:22px; color:#fff; background:linear-gradient(150deg,var(--seg),var(--seg2)); position:relative; overflow:hidden; display:flex; flex-direction:column; gap:10px}
+.sharecard .big{font-family:var(--display); font-size:48px; font-weight:800; line-height:.95; letter-spacing:-.04em}
+.sharecard .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px}
+.sharecard .stats div{background:rgba(255,255,255,.16); border-radius:14px; padding:10px; font-size:11.5px}
+.sharecard .stats b{display:block; font-size:20px; font-family:var(--display)}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} }
+</style>
+
+<div class="stage" id="stage">
+  <section class="rail" aria-label="About this prototype">
+    <div class="brand">
+      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="16" cy="17" r="10" fill="none" stroke="var(--peer)" stroke-width="4.5"/><circle cx="28" cy="17" r="10" fill="none" stroke="var(--coach)" stroke-width="4.5"/><circle cx="22" cy="28" r="10" fill="none" stroke="var(--d75)" stroke-width="4.5"/></svg>
+      <div><b>FitCircle</b><small>Nairobi · Launching September 2026</small></div>
+    </div>
+    <h1>Fitness with <em>somebody watching.</em></h1>
+    <p class="lede">A clickable MVP of the FitCircle flow. Pick a challenge format, then tap through the phone or jump to any of the 8 steps. Everything on the phone works: stake, log proof, nudge a friend, settle the Jackpot.</p>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="label">Challenge format</span>
+      <div class="segpick" id="segpick"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="label">The journey · tap a step</span>
+      <ol class="steps" id="steps"></ol>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="label">Demo controls</span>
+      <div class="demo">
+        <button class="chipbtn" data-act="restart">Start over</button>
+        <button class="chipbtn" data-act="skipEnd">Fast-forward to challenge end</button>
+        <button class="chipbtn" data-act="teen">Try a 17-year-old sign-up</button>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="label">Rules built into the flow</span>
+      <ul class="rules">
+        <li>16+ to join, 18+ to stake</li>
+        <li>Minimum 2 sessions a week</li>
+        <li>Same-day proof, no backdating</li>
+        <li>No proof, no credit</li>
+        <li>Stakes lock at the start</li>
+        <li>Forfeits go to completers</li>
+        <li>Instructors are verified</li>
+        <li>Anyone can flag fake proof</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="phone-wrap">
+    <div class="phone seg-peer" id="phone">
+      <div class="statusbar"><span class="num">9:41</span><div class="island"></div><span class="sig"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:13px"></i></span></div>
+      <div class="screen" id="screen"></div>
+      <nav class="tabbar" id="tabbar" hidden></nav>
+      <div id="layer"></div>
+      <canvas class="fx" id="fx"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const svg = p => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const I = {
+  flame: svg('<path d="M12 3c.6 3.2 5 5.2 5 10a5 5 0 0 1-10 0c0-2.2 1-3.7 2.3-4.8.1 1.7.9 2.8 2 3.1-.8-2.8-.2-5.6.7-8.3Z"/>'),
+  check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  camera: svg('<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'),
+  users: svg('<circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.6.2 4.3 1.8 4.9 4.8"/>'),
+  medal: svg('<circle cx="12" cy="9" r="5"/><path d="M8.5 13 7 21l5-2.5 5 2.5-1.5-8"/>'),
+  cal: svg('<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  home: svg('<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/>'),
+  bell: svg('<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21h4"/>'),
+  trophy: svg('<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/>'),
+  lock: svg('<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>'),
+  shield: svg('<path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/>'),
+  back: svg('<path d="M15 5l-7 7 7 7"/>'),
+  arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+  flag: svg('<path d="M6 21V4M6 4h11l-2 4 2 4H6"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
+  star: svg('<path d="m12 4 2.4 5 5.3.6-4 3.7 1.1 5.3L12 16l-4.8 2.6 1.1-5.3-4-3.7 5.3-.6z"/>'),
+  coin: svg('<circle cx="12" cy="12" r="8"/><path d="M14.5 9.2c-.4-.9-1.3-1.4-2.5-1.4-1.5 0-2.5.8-2.5 1.9 0 2.6 5 1.4 5 4.1 0 1.1-1 1.9-2.5 1.9-1.2 0-2.2-.5-2.6-1.5M12 6.3v1.5M12 16.2v1.5"/>'),
+  hand: svg('<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V5a1.5 1.5 0 0 1 3 0v6M14 11V6.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4-2L4 14.5a1.5 1.5 0 0 1 2.3-2L8 14"/>'),
+  share: svg('<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6"/>'),
+  spark: svg('<path d="M12 3v5M12 16v5M3 12h5M16 12h5M5.6 5.6l3 3M15.4 15.4l3 3M5.6 18.4l3-3M15.4 8.6l3-3"/>'),
+};
+
+const SEG = {
+  peer:  {name:'Peer Group', short:'Peer', icon:'users', blurb:'Friends, family or colleagues. One weekly target, one shared Jackpot.', tag:'Most popular'},
+  coach: {name:'Instructor Challenge', short:'Instructor', icon:'medal', blurb:'A verified trainer runs a 1–12 week programme and guides you daily.', tag:'Paid programme'},
+  d75:   {name:'Custom 75-Day', short:'75-Day', icon:'cal', blurb:'Pick your daily tasks. Go Hard or Soft. Set your own rules and stakes.', tag:'Premium builder'},
+};
+const COACHES = [
+  {id:'wanjiru', name:'Coach Wanjiru M.', init:'WM', prog:'Karura Forest 10K', weeks:6, fee:1500, joined:48, rating:4.9, cut:75, tags:['Running','Beginner friendly'], grad:['#2B55F5','#12B0FF'], today:'Tempo run · 5 km at conversational pace, then 4 × 100 m strides.'},
+  {id:'otieno',  name:'Coach Otieno K.',  init:'OK', prog:'Kettlebell Strength Block', weeks:4, fee:2000, joined:31, rating:4.8, cut:80, tags:['Strength','Home workout'], grad:['#6A3DF2','#2B55F5'], today:'Swings 5 × 15, goblet squats 4 × 10, 10-min finisher.'},
+  {id:'fatuma',  name:'Coach Fatuma A.',  init:'FA', prog:'Mobility & Yoga Reset', weeks:3, fee:1000, joined:62, rating:5.0, cut:75, tags:['Yoga','All levels'], grad:['#0F8FD6','#34D1C4'], today:'Hip openers flow · 25 minutes, follow the voice note.'},
+  {id:'kiprono', name:'Coach Kiprono',    init:'KP', prog:'Lunch-Break HIIT (Teams)', weeks:8, fee:2500, joined:24, rating:4.7, cut:70, tags:['HIIT','Corporate'], grad:['#1D3FCF','#5B7DFF'], today:'20-min EMOM · burpees, mountain climbers, jump squats.'},
+];
+const TASKS = [
+  {id:'workout', t:'45-min workout', h:true, s:true}, {id:'outdoor', t:'Second workout, outdoors', h:true},
+  {id:'water', t:'Drink 3 litres of water', h:true, s:true}, {id:'read', t:'Read 10 pages', h:true, s:true},
+  {id:'photo', t:'Progress photo', h:true}, {id:'noalc', t:'No alcohol'}, {id:'stretch', t:'10-min stretch'}, {id:'walk', t:'8,000 steps'},
+];
+const COLORS = ['#F2481F','#2B55F5','#0A9A6B','#C2338A','#E08A00','#6A3DF2','#0F8FD6'];
+
+const fresh = () => ({
+  screen:'welcome', hist:[], seg:'peer',
+  user:{name:'Amani', phone:'0712 345 678', age:'24', goals:['Consistency','Run a 10K']}, err:'',
+  peer:{name:'Ofisi Movers', target:3, weeks:4, code:'FC-7Q2K'},
+  coachId:'wanjiru',
+  d75:{mode:'soft', tasks:['workout','water','read'], day:23, today:['water']},
+  stake:{peer:500, d75:1000}, noStake:false, method:'mpesa', pay:'confirm',
+  logged:false, proof:null, sessType:'Run', boardTab:'board', sheet:null, nudged:{}, flagged:{}, ended:false,
+  members:{
+    peer:[{n:'Amani', me:1, s:2, st:9, td:0}, {n:'Achieng', s:3, st:14, td:1}, {n:'Njeri', s:3, st:11, td:1}, {n:'Brian', s:2, st:6, td:0}, {n:'Wambui', s:2, st:4, td:1}, {n:'Kevin', s:1, st:0, td:0}],
+    coach:[{n:'Mercy', s:5, st:17, td:1}, {n:'Amani', me:1, s:4, st:9, td:0}, {n:'Dennis', s:4, st:12, td:1}, {n:'Faith', s:4, st:8, td:1}, {n:'Collins', s:3, st:3, td:0}, {n:'Lilian', s:2, st:0, td:0}],
+    d75:[{n:'Achieng', s:23, st:23, td:1}, {n:'Amani', me:1, s:22, st:22, td:0}, {n:'Njeri', s:22, st:22, td:1}, {n:'Brian', s:19, st:4, td:0}],
+  },
+});
+let S = fresh();
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('en-KE');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const coach = () => COACHES.find(c => c.id === S.coachId);
+const members = () => S.members[S.seg];
+const me = () => members().find(m => m.me);
+const adult = () => +S.user.age >= 18;
+const staked = () => S.seg === 'coach' || (!S.noStake && adult());
+const stakeAmt = () => S.seg === 'coach' ? coach().fee : S.stake[S.seg];
+const target = () => S.seg === 'peer' ? S.peer.target : S.seg === 'coach' ? 5 : 7;
+const colorOf = n => COLORS[[...n].reduce((a,c) => a + c.charCodeAt(0), 0) % COLORS.length];
+const av = (n, sz) => `<span class="av" style="background:${colorOf(n)};${sz ? `width:${sz}px;height:${sz}px;font-size:${sz*.38}px` : ''}">${esc(n[0])}</span>`;
+
+// ---------- journey steps ----------
+const STEPS = [
+  ['Sign up', 'Profile, goals, format', 'welcome'],
+  ['Join or create', 'Group, programme or 75-day', 'setup'],
+  ['Commit your stake', 'Lock it in the Jackpot', 'stake'],
+  ['Show up and log', 'Same-day photo proof', 'log'],
+  ['Track your group', 'Live leaderboard and feed', 'board'],
+  ['Get reminders', 'Daily nudges', 'alerts'],
+  ['Challenge ends', 'Jackpot is settled', 'end'],
+  ['Win and recruit', 'Share, start the next one', 'win'],
+];
+const STEP_OF = {welcome:0, signup:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
+const setupScreen = () => S.seg === 'peer' ? 'setup' : S.seg === 'coach' ? 'browse' : 'build';
+
+// ---------- screens ----------
+const top = (title, back = true) => `<div class="topbar">${back ? `<button class="iconbtn" data-act="back" aria-label="Back">${I.back}</button>` : ''}<h2 ${back ? '' : 'style="padding:0"'}>${title}</h2></div>`;
+
+const V = {};
+V.welcome = () => `
+  <div class="orbit" aria-hidden="true"><span class="o o1"></span><span class="o o2"></span><span class="o o3"></span>
+    <span class="eye"><span class="live"></span>4 friends are watching</span></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <span class="eyebrow" style="color:var(--peer)">Fitness · Accountability · Community</span>
+    <h3 class="big" style="font-size:38px">You won't quit when somebody's watching.</h3>
+    <p class="sub">Join a circle, put money on showing up, and prove every session. Show up and you win. Skip, and your stake goes to the people who came.</p>
+  </div>
+  <div class="stick">
+    <button class="btn" data-act="go" data-arg="signup">Get started ${I.arrow}</button>
+    <button class="btn ghost" data-act="invite">I have an invite code</button>
+  </div>`;
+
+V.signup = () => {
+  const goals = ['Lose weight','Build strength','Run a 10K','Consistency','Mental toughness','Feel better'];
+  return `${top('Create your profile')}
+  <div class="field"><label for="f-name">First name</label><input id="f-name" data-bind="user.name" value="${esc(S.user.name)}" autocomplete="given-name"></div>
+  <div class="field"><label for="f-phone">Phone (for M-Pesa)</label><input id="f-phone" data-bind="user.phone" value="${esc(S.user.phone)}" inputmode="tel"></div>
+  <div class="field"><label for="f-age">Age</label><input id="f-age" data-bind="user.age" value="${esc(S.user.age)}" inputmode="numeric" maxlength="2">
+    ${S.err ? `<span class="err" role="alert">${S.err}</span>` : +S.user.age >= 16 && +S.user.age < 18 ? `<span class="note">${I.shield}You can join any challenge. Staked challenges open when you turn 18.</span>` : ''}</div>
+  <div class="field"><label>What are you working towards?</label>
+    <div class="chips">${goals.map(g => `<button class="chip" data-act="goal" data-arg="${g}" aria-pressed="${S.user.goals.includes(g)}">${g}</button>`).join('')}</div></div>
+  <div class="stick"><button class="btn" data-act="signup">Continue ${I.arrow}</button></div>`;
+};
+
+V.format = () => `${top('Choose your format')}
+  <div><h3 class="big">How do you want to be held accountable, ${esc(S.user.name || 'friend')}?</h3></div>
+  ${Object.entries(SEG).map(([k, s]) => `
+    <button class="fmt ${k}" data-act="pickSeg" data-arg="${k}"><span class="tag">${s.tag}</span><span class="ring"></span>
+      ${I[s.icon]}<b>${s.name}</b><span>${s.blurb}</span></button>`).join('')}
+  <p class="note" style="justify-content:center">${I.lock}Staking is opt-in. Any challenge can run without money.</p>`;
+
+V.setup = () => `${top('New peer group')}
+  <div class="field"><label for="f-gname">Group name</label><input id="f-gname" data-bind="peer.name" value="${esc(S.peer.name)}"></div>
+  <div class="field"><label>Sessions per week</label>
+    <div class="seg-ctrl">${[2,3,4,5].map(n => `<button data-act="target" data-arg="${n}" aria-pressed="${S.peer.target === n}">${n}×</button>`).join('')}</div>
+    <span class="note">${I.shield}FitCircle minimum is 2 sessions a week.</span></div>
+  <div class="field"><label>Length</label>
+    <div class="seg-ctrl">${[2,4,6,8].map(n => `<button data-act="weeks" data-arg="${n}" aria-pressed="${S.peer.weeks === n}">${n} wks</button>`).join('')}</div></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <div class="row"><div class="grow"><div class="small muted">Invite code</div><div style="font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:.06em;color:var(--seg)">${S.peer.code}</div></div>
+      <button class="iconbtn" data-act="copy" data-arg="Join my FitCircle group ${esc(S.peer.name)}: code ${S.peer.code}" aria-label="Copy invite">${I.copy}</button></div>
+    <div class="row">${members().filter(m => !m.me).map(m => av(m.n, 32)).join('')}<span class="small muted">5 friends joined</span></div>
+  </div>
+  <div class="stick"><button class="btn" data-act="go" data-arg="stake">Set the stake ${I.arrow}</button></div>`;
+
+V.browse = () => `${top('Instructor challenges')}
+  <div><h3 class="big">Train with a verified coach.</h3><p class="sub" style="margin-top:6px">Every instructor is checked: certification, ID and a demo video.</p></div>
+  <div class="chips"><span class="chip" aria-pressed="true">All</span><span class="chip">Running</span><span class="chip">Strength</span><span class="chip">Yoga</span></div>
+  ${COACHES.map(c => `
+    <button class="coachcard" data-act="openCoach" data-arg="${c.id}">
+      <span class="ph" style="background:linear-gradient(135deg,${c.grad[0]},${c.grad[1]})">${c.init}</span>
+      <span class="grow" style="display:flex;flex-direction:column;gap:4px;min-width:0">
+        <b>${c.prog}</b>
+        <span class="small muted">${c.name} · <span class="verified">${I.shield}Verified</span></span>
+        <span class="row small" style="gap:8px"><span class="pill seg">${c.weeks} weeks</span><span class="pill gold num">KES ${fmt(c.fee)}</span><span class="muted num">${c.joined} joined</span></span>
+      </span></button>`).join('')}`;
+
+V.coachDetail = () => { const c = coach(); return `${top('Programme')}
+  <div class="hero" style="background:linear-gradient(140deg,${c.grad[0]},${c.grad[1]})">
+    <div class="k">${c.weeks}-week programme · starts Monday</div>
+    <div class="v" style="font-size:34px">${c.prog}</div>
+    <div class="meta"><span>${c.name}</span><span>★ ${c.rating}</span><span class="num">${c.joined} joined</span></div>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="row"><span class="verified">${I.shield}Verified instructor</span><span class="muted small" style="margin-left:auto">Certification · ID · Demo video</span></div>
+    <div class="small">Daily plan in the app, a voice note from your coach each morning, and a group chat with everyone in the programme. Log 5 sessions a week to complete.</div>
+  </div>
+  <div class="card"><div class="small muted" style="margin-bottom:8px">Where your KES ${fmt(c.fee)} goes</div>
+    <div style="display:flex;height:12px;border-radius:8px;overflow:hidden"><i style="width:${c.cut}%;background:var(--coach)"></i><i style="flex:1;background:var(--gold)"></i></div>
+    <div class="row small" style="margin-top:8px"><span><b>${c.cut}%</b> to ${c.name.replace('Coach ','')}</span><span class="muted" style="margin-left:auto">${100-c.cut}% FitCircle</span></div></div>
+  <div class="stick"><button class="btn" data-act="go" data-arg="stake">Join for KES ${fmt(c.fee)} ${I.arrow}</button></div>`; };
+
+V.build = () => `${top('Build your 75')}
+  <div><h3 class="big">75 days. Your rules.</h3><p class="sub" style="margin-top:6px">Every task, every day, with proof. Miss a day and the rules decide what happens.</p></div>
+  <div class="seg-ctrl"><button data-act="mode" data-arg="soft" aria-pressed="${S.d75.mode==='soft'}">75 Soft</button><button data-act="mode" data-arg="hard" aria-pressed="${S.d75.mode==='hard'}">75 Hard</button></div>
+  <div class="note">${I.spark}${S.d75.mode === 'hard' ? 'Hard: miss one task and you restart at day 1.' : 'Soft: one rest day a week. Miss a task and you lose that day.'}</div>
+  <div class="tasks">${TASKS.map(t => `<button class="task" data-act="task" data-arg="${t.id}" aria-pressed="${S.d75.tasks.includes(t.id)}"><span class="bx">${I.check}</span>${t.t}</button>`).join('')}</div>
+  <div class="stick"><button class="btn" data-act="go" data-arg="stake" ${S.d75.tasks.length < 2 ? 'disabled' : ''}>${S.d75.tasks.length} daily tasks · Continue ${I.arrow}</button></div>`;
+
+V.stake = () => {
+  const isCoach = S.seg === 'coach', amt = stakeAmt(), n = members().length;
+  const pool = amt * n;
+  return `${top(isCoach ? 'Pay entry fee' : 'Commit your stake')}
+  <div class="hero">
+    <div class="k">${isCoach ? 'Entry fee' : 'Your stake'}</div>
+    <div class="v num"><small>KES</small>${staked() ? fmt(amt) : '0'}</div>
+    <div class="meta">${isCoach ? `<span>${coach().prog}</span><span>${coach().weeks} weeks</span>` : staked() ? `<span><span class="coin"></span> Jackpot if all ${n} stake: KES ${fmt(pool)}</span>` : '<span>Running without money. Pride is the stake.</span>'}</div>
+  </div>
+  ${isCoach ? '' : `
+  ${adult() ? `<div class="amounts">${[200,500,1000,2000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
+  <button class="switch" data-act="noStake" role="switch" aria-checked="${!staked()}" ${adult() ? '' : 'disabled'}>
+    <span class="grow"><b style="display:block;font-size:14.5px">Run without stakes</b><span class="small muted">${adult() ? 'Same challenge, no money on the line.' : 'Staked challenges are for ages 18 and up.'}</span></span><span class="tg"></span></button>
+  ${staked() ? `<div class="outcomes"><div class="w"><b>Show up</b>Get your KES ${fmt(amt)} back plus a share of every forfeited stake.</div><div class="l"><b>Skip</b>Your KES ${fmt(amt)} goes to the people who showed up.</div></div>` : ''}`}
+  <p class="note">${I.lock}${staked() ? 'Money is locked when the challenge starts on Monday and cannot be withdrawn early.' : 'You still log proof and appear on the leaderboard.'}</p>
+  <div class="stick"><button class="btn" data-act="${staked() ? 'go' : 'startFree'}" data-arg="pay">${staked() ? `${I.lock} Lock KES ${fmt(amt)}` : `Start the challenge ${I.arrow}`}</button></div>`;
+};
+
+V.pay = () => { const amt = stakeAmt(); return `${top('Payment')}
+  <div><span class="eyebrow">Step 3 of 8 · Commit</span><h3 class="big" style="margin-top:6px">Lock KES ${fmt(amt)} into the ${S.seg === 'coach' ? 'programme' : 'Jackpot'}.</h3></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <button class="radio" data-act="method" data-arg="mpesa" role="radio" aria-checked="${S.method==='mpesa'}"><span class="rd"></span><span class="pm" style="background:#12A150">M</span><span class="grow"><b>M-Pesa</b><div class="small muted num">${esc(S.user.phone)}</div></span></button>
+    <button class="radio" data-act="method" data-arg="card" role="radio" aria-checked="${S.method==='card'}"><span class="rd"></span><span class="pm" style="background:#E08A00">F</span><span class="grow"><b>Card via Flutterwave</b><div class="small muted">Visa, Mastercard</div></span></button>
+  </div>
+  <div class="card math num"><span class="muted">${S.seg === 'coach' ? 'Entry fee' : 'Stake'}</span><span>KES ${fmt(amt)}</span><span class="muted">Processing</span><span>KES 0</span><span class="tot">Total</span><span class="tot">KES ${fmt(amt)}</span></div>
+  <div class="stick"><button class="btn" data-act="payNow">Pay KES ${fmt(amt)}</button><p class="note" style="justify-content:center">${I.shield}Payments are processed securely. FitCircle never sees your PIN.</p></div>`; };
+
+const heroFor = () => {
+  const m = me();
+  if (S.seg === 'peer') {
+    const n = members().length, pool = staked() ? stakeAmt() * n : 0;
+    return `<div class="hero"><div class="k">${esc(S.peer.name)} · Week 2 of ${S.peer.weeks}</div>
+      <div class="v num">${staked() ? `<small>KES</small><span data-count="${pool}">${fmt(pool)}</span>` : `<span>${n} in</span>`}</div>
+      <div class="meta"><span>${staked() ? '<span class="coin"></span> Jackpot pool' : 'No-stakes group'}</span><span class="num">${members().filter(x => x.td).length} of ${n} logged today</span></div>
+      <div class="bar"><i style="width:${Math.min(100, m.s / target() * 100)}%"></i></div>
+      <div class="meta" style="margin-top:6px"><span class="num">You: ${m.s} of ${target()} sessions this week</span></div></div>`;
+  }
+  if (S.seg === 'coach') { const c = coach();
+    return `<div class="hero"><div class="k">${c.prog} · Week 3 of ${c.weeks}</div>
+      <div class="v" style="font-size:30px;margin-top:10px">Today: ${c.today.split('·')[0]}</div>
+      <div class="meta"><span>${c.today.split('·')[1] || ''}</span></div>
+      <div class="row" style="margin-top:14px;background:rgba(255,255,255,.16);padding:10px;border-radius:14px;gap:10px">
+        <span class="av" style="background:rgba(255,255,255,.3)">${c.init[0]}</span><span class="small grow">“Morning team! Keep it easy today, we build speed on Thursday.” <b>— ${c.name.replace('Coach ','')}</b></span></div></div>`;
+  }
+  const d = S.d75.day;
+  return `<div class="hero"><div class="k">Custom 75 ${S.d75.mode === 'hard' ? 'Hard' : 'Soft'} · ${staked() ? `KES ${fmt(stakeAmt() * members().length)} Jackpot` : 'No stakes'}</div>
+    <div class="v num">Day <span data-count="${d}">${d}</span><small style="margin-left:6px">/ 75</small></div>
+    <div class="meta"><span class="num">${S.d75.today.length} of ${S.d75.tasks.length} tasks done today</span><span class="num">${75 - d} days to go</span></div>
+    <div class="bar"><i style="width:${d / 75 * 100}%"></i></div></div>`;
+};
+
+V.home = () => {
+  const m = me(), days = ['M','T','W','T','F','S','S'], todayIdx = 3;
+  const doneDays = S.seg === 'd75' ? [0,1,2] : S.seg === 'coach' ? [0,1,2] : [0,2];
+  if (S.logged) doneDays.push(todayIdx);
+  return `
+  <div class="row"><div class="grow"><div class="small muted">Habari, ${esc(S.user.name || 'Amani')}</div><div style="font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em">${SEG[S.seg].name}</div></div>
+    <span class="pill seg">${I.flame.replace('class="ic"','class="ic" style="width:14px;height:14px"')}<span class="num">${m.st}-day streak</span></span></div>
+  ${heroFor()}
+  <button class="logcta ${S.logged ? 'done' : ''}" data-act="${S.logged ? 'go' : 'go'}" data-arg="${S.logged ? 'board' : 'log'}" style="text-align:left;width:100%">
+    <span class="pulse">${S.logged ? I.check : I.camera}</span>
+    <span class="grow"><b style="display:block">${S.logged ? 'Logged today at 07:12' : "You haven't logged today"}</b>
+      <span class="small muted">${S.logged ? 'Counts for today. See who else showed up.' : 'Upload proof before midnight. No backdating.'}</span></span>${I.arrow}</button>
+  <div class="card"><div class="row" style="margin-bottom:12px"><b class="grow">This week</b><span class="small muted num">${doneDays.length} of ${target()} ${S.seg==='d75'?'days':'sessions'}</span></div>
+    <div class="week">${days.map((d,i) => `<div><i class="${doneDays.includes(i) ? 'done' : ''} ${i===todayIdx && !S.logged ? 'today' : ''}">${doneDays.includes(i) ? I.check : ''}</i>${d}</div>`).join('')}</div></div>
+  ${S.seg === 'd75' ? `
+  <div class="card"><div class="row" style="margin-bottom:10px"><b class="grow">Today's tasks</b><span class="small muted">Tap to tick off</span></div>
+    <div class="tasks">${S.d75.tasks.map(id => { const t = TASKS.find(x => x.id === id); return `<button class="task" data-act="dtask" data-arg="${id}" aria-pressed="${S.d75.today.includes(id)}"><span class="bx">${I.check}</span>${t.t}</button>`; }).join('')}</div></div>
+  <div class="card"><div class="row" style="margin-bottom:10px"><b class="grow">Your 75</b><span class="small muted num">${S.d75.day - 1} done</span></div>
+    <div class="grid75">${Array.from({length:75}, (_, i) => `<i class="${i < S.d75.day - 1 ? 'd' : i === S.d75.day - 1 ? (S.logged ? 'd' : 't') : ''}"></i>`).join('')}</div></div>` : ''}
+  <div class="card"><div class="row" style="margin-bottom:4px"><b class="grow">${S.seg === 'coach' ? 'Programme leaderboard' : 'Your circle'}</b><button class="link" data-act="go" data-arg="board">See all</button></div>
+    ${board(3)}</div>
+  <button class="link" data-act="skipEnd" style="padding:4px 0 8px">Demo: fast-forward to challenge end →</button>`;
+};
+
+const board = (limit) => {
+  const list = [...members()].sort((a,b) => b.s - a.s || b.st - a.st).slice(0, limit || 99);
+  const tgt = S.seg === 'd75' ? S.d75.day : target();
+  return `<div class="lb">${list.map((m,i) => {
+    const status = m.td ? '<span class="pill good">Logged today</span>' : (m.s / tgt < .5 ? '<span class="pill bad">At risk</span>' : '<span class="pill warn">Not yet</span>');
+    const canNudge = !m.me && !m.td && limit == null;
+    return `<div class="it ${m.me ? 'me' : ''}"><span class="rank num">${i+1}</span>${av(m.n)}
+      <div class="grow" style="min-width:0"><div class="name">${esc(m.me ? (S.user.name || m.n) + ' (you)' : m.n)}</div>
+        <div class="mini"><i style="width:${Math.min(100, m.s / tgt * 100)}%"></i></div>
+        <div class="small muted num" style="margin-top:3px">${S.seg === 'd75' ? `${m.s} of ${S.d75.day} days` : `${m.s} of ${tgt} this week`}${m.st ? ` · ${m.st}-day streak` : ''}</div></div>
+      ${canNudge ? `<button class="nudge ${S.nudged[m.n] ? 'sent' : ''}" data-act="nudge" data-arg="${esc(m.n)}">${S.nudged[m.n] ? 'Nudged' : 'Nudge'}</button>` : status}</div>`;
+  }).join('')}</div>`;
+};
+
+V.board = () => {
+  const posts = members().filter(m => m.td);
+  return `<div class="topbar"><h2 style="padding:0">${S.seg === 'coach' ? coach().prog : S.seg === 'd75' ? 'Your 75 squad' : esc(S.peer.name)}</h2></div>
+  <div class="seg-ctrl"><button data-act="tab" data-arg="board" aria-pressed="${S.boardTab==='board'}">Leaderboard</button><button data-act="tab" data-arg="feed" aria-pressed="${S.boardTab==='feed'}">Proof feed</button></div>
+  ${S.boardTab === 'board' ? `<div class="card">${board()}</div>
+    <p class="note">${I.hand}People who haven't logged get a nudge from you. It's how the circle keeps everyone honest.</p>` : `
+  <div class="feed">${posts.map((m, i) => `
+    <article class="post"><div class="ph"><div class="sample" style="filter:hue-rotate(${i*25}deg)"></div>${m.me && S.proof && S.proof !== 'sample' && !S.proofVideo ? `<img src="${S.proof}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : ''}<span class="stamp" style="position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;padding:4px 9px;border-radius:9px;font-size:12px;font-weight:700">Today · ${['06:48','07:12','12:30','18:05'][i % 4]}</span></div>
+      <div class="bd"><div class="row">${av(m.n, 30)}<b class="grow">${esc(m.me ? 'You' : m.n)}</b>
+        ${m.me ? '<span class="pill good">Counted</span>' : S.flagged[m.n] ? '<span class="pill warn">Under review</span>' : `<button class="iconbtn" data-act="flag" data-arg="${esc(m.n)}" aria-label="Flag proof">${I.flag}</button>`}</div>
+        <span class="small muted">${['Morning run, 6.2 km 🏃','Gym: legs day done','Lunch HIIT with the office','Evening walk + stretch'][i % 4]}</span></div></article>`).join('')}</div>`}`;
+};
+
+V.log = () => `${top('Log a session')}
+  <label class="upload" for="f-proof">
+    ${S.proof === 'sample' ? '<div class="sample"></div>' : S.proof ? (S.proofVideo ? `<video src="${S.proof}" muted autoplay loop playsinline></video>` : `<img src="${S.proof}" alt="Your proof">`) : `<span class="cam">${I.camera}</span><b>Add photo or short video</b><span class="small muted">Taken today. Proof from earlier days won't count.</span>`}
+    ${S.proof ? '<span class="stamp num">Today · 07:12 · verified timestamp</span>' : ''}
+    <input id="f-proof" type="file" accept="image/*,video/*" aria-label="Upload proof"></label>
+  ${S.proof ? '' : '<button class="link" data-act="sampleProof">No photo handy? Use a sample</button>'}
+  <div class="field"><label>What did you do?</label>
+    <div class="chips">${['Run','Gym','HIIT','Yoga','Walk','Football'].map(t => `<button class="chip" data-act="sess" data-arg="${t}" aria-pressed="${S.sessType===t}">${t}</button>`).join('')}</div></div>
+  <div class="stick"><button class="btn" data-act="submitLog" ${S.proof ? '' : 'disabled'}>${I.check} Post proof to the circle</button>
+    <p class="note" style="justify-content:center">${I.users}Your circle sees this. Anyone can flag proof that looks fake.</p></div>`;
+
+V.alerts = () => {
+  const n = members().filter(m => m.td).length, c = coach();
+  const items = [
+    ['bell', 'var(--seg)', 'Time to log', `${n} of ${members().length} have logged today. Don't be the one who hasn't.`, '06:30'],
+    ['hand', '#C2338A', 'Achieng nudged you', '“Come on, we are at the gym already 💪”', '07:02'],
+    ...(S.seg === 'coach' ? [['medal', '#2B55F5', c.name, `Voice note: ${c.today}`, '05:45']] : []),
+    ['flame', '#E08A00', `${S.seg === 'd75' ? 'Brian' : 'Kevin'} is at risk`, 'Behind this week. Send a nudge to keep the circle whole.', 'Yesterday'],
+    ...(staked() && S.seg !== 'coach' ? [['coin', '#F5A800', 'Jackpot update', `Pool is KES ${fmt(stakeAmt() * members().length)}. Every skipped week grows the share for those who show up.`, 'Mon']] : []),
+    ['shield', '#0A9A6B', 'Flag reviewed', 'A flagged session in your circle was checked and approved.', 'Sun'],
+  ];
+  return `<div class="topbar"><h2 style="padding:0">Reminders</h2></div>
+  ${items.map(([ic, col, t, p, tm]) => `<div class="notif"><span class="nic" style="background:${col}">${I[ic]}</span><div class="grow" style="min-width:0"><div class="row"><b class="grow">${t}</b><time>${tm}</time></div><p>${p}</p></div></div>`).join('')}
+  <button class="switch" role="switch" aria-checked="true"><span class="grow"><b style="display:block;font-size:14.5px">Daily reminder at 06:30</b><span class="small muted">A second one at 19:00 if you haven't logged.</span></span><span class="tg"></span></button>`;
+};
+
+const settlement = () => {
+  const list = members();
+  const done = S.seg === 'peer' ? ['Amani','Achieng','Njeri','Wambui'] : S.seg === 'd75' ? ['Amani','Achieng','Njeri'] : list.map(m => m.n);
+  const amt = stakeAmt(), pool = amt * list.length, fee = Math.round(pool * .1), each = (pool - fee) / done.length;
+  return {list, done, amt, pool, fee, each};
+};
+
+V.end = () => {
+  if (S.seg === 'coach') { const c = coach(); return `
+    <div class="topbar"><h2 style="padding:0">Programme complete</h2></div>
+    <div class="hero"><div class="k">${c.prog}</div><div class="v num"><span data-count="28">28</span><small style="margin-left:6px">/ 30</small></div><div class="meta"><span>sessions logged over ${c.weeks} weeks</span></div><div class="bar"><i style="width:93%"></i></div></div>
+    <div class="card"><div class="small muted" style="margin-bottom:10px">Finishers, by sessions logged</div>${board(4)}</div>
+    <div class="card row"><span class="av" style="background:linear-gradient(135deg,${c.grad[0]},${c.grad[1]})">${c.init[0]}</span><span class="small grow">${c.name} earned <b>${c.cut}%</b> of the entry fees from ${c.joined} people. You made that possible.</span></div>
+    <div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`; }
+  if (!staked()) return `<div class="topbar"><h2 style="padding:0">Challenge complete</h2></div>
+    <div class="hero"><div class="k">No-stakes challenge</div><div class="v">You finished.</div><div class="meta"><span>Every session logged, all with proof.</span></div></div>
+    <div class="card">${board()}</div><div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`;
+  const s = settlement();
+  return `<div class="topbar"><h2 style="padding:0">Settling the Jackpot</h2></div>
+  <div class="hero"><div class="k">Final pool</div><div class="v num"><small>KES</small><span data-count="${s.pool}">${fmt(s.pool)}</span></div>
+    <div class="meta"><span class="num">${s.done.length} completed · ${s.list.length - s.done.length} forfeited</span></div></div>
+  <div class="settle">${s.list.map((m, i) => { const ok = s.done.includes(m.n); return `
+    <div class="it" style="animation-delay:${.15 + i * .12}s">${av(m.n, 32)}<b>${esc(m.me ? 'You' : m.n)}</b>
+      <span class="pill ${ok ? 'good' : 'bad'}">${ok ? 'Completed' : 'Missed target'}</span>
+      <span class="amt ${ok ? 'plus' : 'minus'}">${ok ? '+' + fmt(s.each - s.amt) : '−' + fmt(s.amt)}</span></div>`; }).join('')}</div>
+  <div class="card math num"><span class="muted">Pool</span><span>KES ${fmt(s.pool)}</span><span class="muted">FitCircle fee (10%)</span><span>− KES ${fmt(s.fee)}</span><span class="tot">Each completer receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
+  <div class="stick"><button class="btn" data-act="go" data-arg="win">${I.trophy} Collect KES ${fmt(s.each)}</button></div>`;
+};
+
+V.win = () => {
+  const s = staked() && S.seg !== 'coach' ? settlement() : null, c = coach();
+  const headline = s ? `+KES ${fmt(s.each - s.amt)}` : S.seg === 'coach' ? 'Programme done' : '75 / 75';
+  const line = s ? `Put in KES ${fmt(s.amt)}. Took home KES ${fmt(s.each)}.` : S.seg === 'coach' ? `${c.prog} with ${c.name}` : 'Every task, every day.';
+  const shareText = `I just finished ${S.seg === 'coach' ? c.prog : S.seg === 'd75' ? 'my 75-day challenge' : esc(S.peer.name) + ' on FitCircle'}. ${s ? `Won KES ${fmt(s.each - s.amt)} for showing up.` : ''} Join my next circle: fitcircle.co/j/${S.peer.code}`;
+  return `<div class="topbar"><h2 style="padding:0">You showed up.</h2></div>
+  <div class="sharecard"><div class="row" style="gap:8px">${I.trophy}<b>FitCircle · ${SEG[S.seg].name}</b></div>
+    <div class="big">${headline}</div><div>${line}</div>
+    <div class="stats num"><div><b>${S.seg === 'd75' ? 75 : S.seg === 'coach' ? 28 : S.peer.weeks * S.peer.target}</b>${S.seg==='d75'?'days':'sessions'}</div><div><b>${me().st + (S.seg==='d75'?53:12)}</b>best streak</div><div><b>${members().length}</b>in circle</div></div></div>
+  <button class="btn dark" data-act="copy" data-arg="${esc(shareText)}">${I.share} Copy share text</button>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px"><b>Start the next one</b>
+    <span class="small muted">Every finished challenge starts the next. ${S.seg === 'peer' ? 'Brian and Kevin want a rematch.' : 'Bring two friends and your next entry is 20% off.'}</span>
+    <div class="row">${['Brian','Kevin','Mercy','Faith'].map(n => av(n, 32)).join('')}<span class="small muted">+ invite from contacts</span></div>
+    <button class="btn" data-act="again">${I.plus} Start a new circle</button></div>`;
+};
+
+// ---------- render ----------
+const TAB_SCREENS = ['home','board','alerts'];
+function render(anim = true) {
+  const ph = $('phone');
+  ph.className = `phone seg-${S.seg}`;
+  document.body.className = `seg-${S.seg}`;
+  document.documentElement.style.setProperty('--seg', `var(--${S.seg === 'd75' ? 'd75' : S.seg})`);
+  const sc = $('screen');
+  sc.innerHTML = V[S.screen]();
+  sc.classList.toggle('welcome', S.screen === 'welcome');
+  if (anim) { sc.classList.remove('enter'); void sc.offsetWidth; sc.classList.add('enter'); sc.scrollTop = 0; }
+  const tb = $('tabbar');
+  tb.hidden = !TAB_SCREENS.includes(S.screen);
+  if (!tb.hidden) tb.innerHTML = [
+    ['home', I.home, 'Home'], ['board', I.users, 'Circle'], ['log', null, 'Log'], ['alerts', I.bell, 'Alerts'], ['end', I.trophy, 'Result']
+  ].map(([k, ic, l]) => k === 'log'
+    ? `<button data-act="go" data-arg="log" aria-label="Log a session"><span class="fab">${I.camera}</span></button>`
+    : `<button data-act="${k === 'end' ? 'skipEnd' : 'tab2'}" data-arg="${k}" ${S.screen === k ? 'aria-current="page"' : ''}><span style="position:relative">${ic}${k==='alerts' && !S.logged ? '<span class="badge">3</span>' : ''}</span>${l}</button>`).join('');
+  renderLayer(); renderRail(); countUp();
+}
+function renderLayer() {
+  const L = $('layer'); const sh = S.sheet;
+  if (!sh) { L.innerHTML = ''; return; }
+  if (sh.type === 'pay') L.innerHTML = `<div class="scrim"><div class="sheet" role="dialog" aria-label="Payment" style="text-align:center"><div class="grab"></div>
+    ${sh.stage === 'wait' ? `<div class="spinner"></div><b style="font-size:18px">Check your phone</b><p class="sub">${S.method === 'mpesa' ? `We sent an M-Pesa prompt to ${esc(S.user.phone)}. Enter your PIN to confirm KES ${fmt(stakeAmt())}.` : 'Confirming your card with Flutterwave…'}</p>
+      <button class="btn ghost" data-act="payDone">Simulate: PIN entered</button>`
+    : `<div class="celebrate" style="position:static;background:none;color:var(--ink);padding:10px 0"><div class="flame" style="background:var(--soft);color:var(--seg)">${I.lock}</div></div>
+      <b style="font-size:22px;font-family:var(--display)">${S.seg === 'coach' ? "You're in." : 'Stake locked.'}</b>
+      <p class="sub">${S.seg === 'coach' ? `${coach().name} will send your first plan on Monday at 05:45.` : `KES ${fmt(stakeAmt())} is in the Jackpot. The only way to get it back is to show up.`}</p>
+      <button class="btn" data-act="enter">Go to my challenge ${I.arrow}</button>`}</div></div>`;
+  if (sh.type === 'flag') L.innerHTML = `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-label="Flag proof" data-stop><div class="grab"></div>
+    <b style="font-size:19px">Flag ${esc(sh.who)}'s proof?</b><p class="sub">The FitCircle team will review it. If it's fake the session won't count. Three upheld flags trigger an account review.</p>
+    <div class="chips">${['Old photo','Not a workout','Someone else'].map((r,i) => `<button class="chip" data-act="reason" data-arg="${r}" aria-pressed="${sh.reason===r}">${r}</button>`).join('')}</div>
+    <button class="btn dark" data-act="flagConfirm">${I.flag} Send for review</button><button class="btn ghost" data-act="closeSheet">Cancel</button></div></div>`;
+  if (sh.type === 'celebrate') { const m = me(); L.innerHTML = `<div class="celebrate" role="dialog" aria-label="Session logged">
+    <div class="flame">${I.flame}</div><div class="n num" data-count="${m.st}">${m.st}</div><b style="font-size:18px">day streak</b>
+    <p>${S.seg === 'd75' ? `Day ${S.d75.day} done. ${75 - S.d75.day} to go.` : `${m.s} of ${target()} this week. ${m.s >= target() ? 'Weekly target hit.' : `${target() - m.s} more to hit your target.`}`} Your circle just got a notification.</p>
+    <button class="btn" data-act="closeCelebrate">Back to the circle</button></div>`; }
+  if (sh.type === 'invite') L.innerHTML = `<div class="scrim" data-act="closeSheet"><div class="sheet" data-stop role="dialog" aria-label="Invite code"><div class="grab"></div>
+    <b style="font-size:19px">Enter invite code</b><div class="field"><input id="f-code" value="FC-7Q2K" style="letter-spacing:.1em;font-weight:800;text-transform:uppercase" aria-label="Invite code"></div>
+    <div class="card row">${av('Achieng')}<span class="grow small"><b>Achieng</b> invited you to <b>Ofisi Movers</b>. 5 people · 3 sessions a week · KES 500 stake.</span></div>
+    <button class="btn" data-act="acceptInvite">Join the group ${I.arrow}</button></div></div>`;
+}
+function renderRail() {
+  $('segpick').innerHTML = Object.entries(SEG).map(([k, s]) => `<button data-act="railSeg" data-arg="${k}" aria-pressed="${S.seg===k}" style="--c:var(--${k});--c2:var(--${k === 'd75' ? 'd75b' : k + '2'})"><span class="dot"></span><strong>${s.short}</strong><span>${k==='peer'?'Group stakes':k==='coach'?'Paid programmes':'Your own rules'}</span></button>`).join('');
+  const cur = STEP_OF[S.screen];
+  $('steps').innerHTML = STEPS.map(([t, d], i) => `<li class="${i === cur ? 'on' : i < cur ? 'past' : ''}"><button data-act="step" data-arg="${i}"><span class="n num">${i+1}</span><span class="t"><b>${t}</b><span>${d}</span></span></button></li>`).join('');
+}
+function countUp() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll('#phone [data-count]').forEach(el => {
+    const to = +el.dataset.count, t0 = performance.now();
+    const tick = t => { const p = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - p, 3); el.textContent = fmt(to * e); if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+}
+let toastT;
+function toast(msg) {
+  const L = $('layer'); document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role','status'); t.innerHTML = `${I.check}<span>${msg}</span>`;
+  $('phone').appendChild(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2400);
+}
+
+// confetti
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = $('fx'), ph = $('phone'), r = ph.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr; const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  const cs = getComputedStyle(ph), cols = [cs.getPropertyValue('--seg'), cs.getPropertyValue('--seg2'), cs.getPropertyValue('--gold'), '#ffffff'].map(c => c.trim());
+  const P = Array.from({length:140}, () => ({x:r.width/2, y:r.height*.42, vx:(Math.random()-.5)*11, vy:-Math.random()*12-4, s:Math.random()*7+4, c:cols[Math.random()*cols.length|0], a:Math.random()*6, va:(Math.random()-.5)*.3}));
+  let f = 0;
+  (function loop(){ ctx.clearRect(0,0,r.width,r.height); P.forEach(p => { p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.va;
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); ctx.restore(); });
+    if (++f < 150) requestAnimationFrame(loop); else ctx.clearRect(0,0,r.width,r.height); })();
+}
+
+// ---------- actions ----------
+const go = (s, push = true) => { if (push && S.screen !== s) S.hist.push(S.screen); S.screen = s; S.sheet = null; render(); };
+const A = {
+  go: a => go(a),
+  back: () => { S.screen = S.hist.pop() || 'welcome'; S.sheet = null; render(); },
+  restart: () => { const seg = S.seg; S = fresh(); S.seg = seg; render(); },
+  teen: () => { S = Object.assign(fresh(), {seg:S.seg}); S.user.age = '17'; S.hist = ['welcome']; go('signup', false); },
+  goal: g => { const G = S.user.goals; G.includes(g) ? G.splice(G.indexOf(g), 1) : G.push(g); render(false); },
+  signup: () => {
+    const age = +S.user.age;
+    if (!S.user.name.trim()) { S.err = ''; toast('Add your first name to continue'); return; }
+    if (!age || age < 16) { S.err = 'FitCircle is for ages 16 and up.'; render(false); return; }
+    S.err = ''; if (age < 18) S.noStake = true; go('format');
+  },
+  pickSeg: k => { S.seg = k; go(setupScreen()); },
+  railSeg: k => {
+    S.seg = k; const st = STEP_OF[S.screen];
+    if (st === 1) S.screen = setupScreen();
+    if (S.screen === 'coachDetail' && k !== 'coach') S.screen = setupScreen();
+    render();
+  },
+  step: i => {
+    i = +i; const scr = STEPS[i][2];
+    if (i === 1) return go(setupScreen());
+    if (i === 6 || i === 7) S.logged = true;
+    if (i >= 3 && S.screen === 'welcome') S.hist = ['welcome'];
+    go(scr);
+  },
+  invite: () => { S.sheet = {type:'invite'}; renderLayer(); },
+  acceptInvite: () => { S.seg = 'peer'; S.sheet = null; S.hist.push('welcome'); go('stake'); },
+  target: n => { S.peer.target = +n; render(false); },
+  weeks: n => { S.peer.weeks = +n; render(false); },
+  openCoach: id => { S.coachId = id; go('coachDetail'); },
+  mode: m => { S.d75.mode = m; S.d75.tasks = TASKS.filter(t => m === 'hard' ? t.h : t.s).map(t => t.id); render(false); },
+  task: id => { const T = S.d75.tasks; T.includes(id) ? T.splice(T.indexOf(id), 1) : T.push(id); render(false); },
+  dtask: id => { const T = S.d75.today; T.includes(id) ? T.splice(T.indexOf(id), 1) : T.push(id);
+    if (S.d75.tasks.every(t => T.includes(t)) && !S.logged) { toast('All tasks ticked. Log your proof to lock in the day.'); } render(false); },
+  amt: a => { S.stake[S.seg] = +a; S.noStake = false; render(false); },
+  noStake: () => { if (!adult()) return; S.noStake = !S.noStake; render(false); },
+  startFree: () => { S.hist.push(S.screen); S.screen = 'home'; render(); toast('Challenge started. No stakes, all proof.'); },
+  method: m => { S.method = m; render(false); },
+  payNow: () => { S.sheet = {type:'pay', stage:'wait'}; renderLayer(); clearTimeout(A._pt); A._pt = setTimeout(() => { if (S.sheet?.type === 'pay') A.payDone(); }, 2600); },
+  payDone: () => { clearTimeout(A._pt); S.sheet = {type:'pay', stage:'done'}; renderLayer(); confetti(); },
+  enter: () => { S.hist = []; go('home', false); },
+  sess: t => { S.sessType = t; render(false); },
+  sampleProof: () => { S.proof = 'sample'; render(false); },
+  submitLog: () => {
+    const m = me();
+    if (!S.logged) { S.logged = true; m.td = 1; m.s += 1; m.st += 1; if (S.seg === 'd75') S.d75.today = [...S.d75.tasks]; }
+    S.hist = []; S.screen = 'home'; render(); S.sheet = {type:'celebrate'}; renderLayer(); countUp(); confetti();
+  },
+  closeCelebrate: () => { S.sheet = null; renderLayer(); },
+  tab: t => { S.boardTab = t; render(false); },
+  tab2: k => { S.hist = []; go(k, false); },
+  nudge: n => { if (S.nudged[n]) return; S.nudged[n] = 1; render(false); toast(`Nudge sent to ${n}. They'll see it next time they open FitCircle.`); },
+  flag: n => { S.sheet = {type:'flag', who:n, reason:'Old photo'}; renderLayer(); },
+  reason: r => { S.sheet.reason = r; renderLayer(); },
+  flagConfirm: () => { const n = S.sheet.who; S.flagged[n] = 1; S.sheet = null; render(false); toast(`Flag sent. ${n}'s session is under review.`); },
+  closeSheet: () => { S.sheet = null; renderLayer(); },
+  skipEnd: () => { S.logged = true; S.hist = ['home']; go('end', false); if (staked() && S.seg !== 'coach') setTimeout(confetti, 900); },
+  copy: txt => { const done = () => toast('Copied to clipboard');
+    try { navigator.clipboard.writeText(txt).then(done, () => toast(txt)); } catch (e) { toast(txt); } },
+  again: () => { const keep = {user:S.user, seg:S.seg}; S = Object.assign(fresh(), keep); S.hist = []; go('format', false); },
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  if (el.classList.contains('scrim') && e.target.closest('[data-stop]')) return;
+  const f = A[el.dataset.act]; if (f) { e.preventDefault(); f(el.dataset.arg, el); }
+});
+document.addEventListener('input', e => {
+  const b = e.target.dataset.bind; if (!b) return;
+  const [o, k] = b.split('.'); S[o][k] = e.target.value;
+});
+document.addEventListener('change', e => {
+  if (e.target.id !== 'f-proof' || !e.target.files[0]) return;
+  const f = e.target.files[0]; S.proofVideo = f.type.startsWith('video');
+  S.proof = URL.createObjectURL(f); render(false);
+});
+render(false);
+})();
+</script>
