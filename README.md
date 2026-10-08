@@ -12,4 +12,6 @@ Social fitness accountability: join a circle, stake money on showing up, prove e
 
 Open the file in a browser. Use the left-hand rail to switch formats or jump to any step.
 
+The MySQL database lives in `db/`. See `db/README.md`.
+
 Switch **View the app as → Instructor** (or tap "I'm a fitness trainer" on the format screen) to see the instructor side: verification, today's dashboard, posting the daily plan, members at risk with nudges, reviewing flagged proof, earnings and payouts, and launching a new programme.
