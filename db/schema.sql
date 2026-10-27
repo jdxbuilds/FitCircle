@@ -61,6 +61,18 @@ CREATE TABLE users (
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB;
 
+-- One-time SMS login codes (stored hashed, expire after 10 minutes)
+CREATE TABLE otp_codes (
+  id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  phone        VARCHAR(20)  NOT NULL,
+  code_hash    CHAR(64)     NOT NULL,
+  attempts     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  expires_at   DATETIME     NOT NULL,
+  used_at      DATETIME,
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY ix_otp_phone (phone, created_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE user_goals (
   user_id  BIGINT UNSIGNED NOT NULL,
   goal     ENUM('lose_weight','build_strength','run_10k','consistency','mental_toughness','feel_better') NOT NULL,
@@ -192,13 +204,16 @@ CREATE TABLE payments (
   challenge_id    BIGINT UNSIGNED,
   kind            ENUM('stake','entry_fee','subscription','custom75_unlock','corporate_license') NOT NULL,
   provider        ENUM('mpesa','flutterwave') NOT NULL,
-  provider_ref    VARCHAR(80),                      -- M-Pesa receipt / Flutterwave tx ref
+  provider_ref    VARCHAR(80),                      -- M-Pesa receipt / Flutterwave tx id, once paid
+  checkout_ref    VARCHAR(80),                      -- M-Pesa CheckoutRequestID / Flutterwave tx_ref, while pending
+  failure_reason  VARCHAR(255),
   amount          DECIMAL(12,2) NOT NULL,
   currency        CHAR(3) NOT NULL DEFAULT 'KES',
   status          ENUM('pending','succeeded','failed','refunded') NOT NULL DEFAULT 'pending',
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   completed_at    DATETIME,
   UNIQUE KEY uq_pay_provider_ref (provider, provider_ref),
+  UNIQUE KEY uq_pay_checkout_ref (provider, checkout_ref),
   KEY ix_pay_user (user_id, created_at),
   CONSTRAINT fk_pay_user FOREIGN KEY (user_id)      REFERENCES users(id),
   CONSTRAINT fk_pay_ch   FOREIGN KEY (challenge_id) REFERENCES challenges(id),
@@ -332,7 +347,8 @@ CREATE TABLE payouts (
   currency       CHAR(3) NOT NULL DEFAULT 'KES',
   provider       ENUM('mpesa','flutterwave') NOT NULL DEFAULT 'mpesa',
   provider_ref   VARCHAR(80),
-  status         ENUM('scheduled','sent','failed') NOT NULL DEFAULT 'scheduled',
+  status         ENUM('scheduled','processing','sent','failed') NOT NULL DEFAULT 'scheduled',
+  failure_reason VARCHAR(255),
   scheduled_for  DATE NOT NULL,
   sent_at        DATETIME,
   KEY ix_payout_user (user_id, status),
@@ -577,7 +593,7 @@ SELECT c.id AS challenge_id, c.title, c.type, c.fee_pct,
        COALESCE(SUM(m.amount_paid), 0) AS pool,
        ROUND(COALESCE(SUM(m.amount_paid), 0) * c.fee_pct / 100, 2) AS projected_fee
   FROM challenges c
-  LEFT JOIN challenge_members m ON m.challenge_id = c.id AND m.amount_paid IS NOT NULL
+  LEFT JOIN challenge_members m ON m.challenge_id = c.id AND m.amount_paid IS NOT NULL AND m.status <> 'withdrawn'
  WHERE c.is_staked
  GROUP BY c.id;
 
@@ -632,7 +648,8 @@ END//
 --   Pools (peer, custom75): FitCircle takes fee_pct of the whole pool, completers split the rest.
 --     If nobody completes, everyone is refunded what is left after the fee.
 --   Instructor: instructor receives (100 - fee_pct)% of entry fees.
---   Rounding cents go to the fee so payouts + fee always equal the gross amount.
+--   M-Pesa pays whole shillings, so payouts round down to the shilling and the
+--   leftover goes to the fee: payouts + fee always equal the gross amount.
 CREATE PROCEDURE settle_challenge(IN p_challenge_id BIGINT UNSIGNED)
 BEGIN
   DECLARE v_type VARCHAR(20); DECLARE v_status VARCHAR(20); DECLARE v_mode VARCHAR(10);
@@ -684,7 +701,7 @@ BEGIN
 
   -- Money
   IF v_type = 'instructor' THEN
-    SET v_fee = ROUND(v_gross * v_fee_pct / 100, 2);
+    SET v_fee = v_gross - FLOOR(v_gross * (100 - v_fee_pct) / 100);
     IF v_gross - v_fee > 0 THEN
       INSERT INTO payouts (user_id, challenge_id, kind, amount, scheduled_for)
       VALUES (v_instructor, p_challenge_id, 'instructor_earning', v_gross - v_fee, CURDATE() + INTERVAL 1 DAY);
@@ -692,13 +709,13 @@ BEGIN
   ELSEIF v_staked AND v_gross > 0 THEN
     SET v_fee = ROUND(v_gross * v_fee_pct / 100, 2);
     IF v_done > 0 THEN
-      SET v_each = TRUNCATE((v_gross - v_fee) / v_done, 2);
+      SET v_each = FLOOR((v_gross - v_fee) / v_done);
       SET v_fee  = v_gross - v_each * v_done;
       INSERT INTO payouts (user_id, challenge_id, kind, amount, scheduled_for)
       SELECT user_id, p_challenge_id, 'jackpot', v_each, CURDATE() + INTERVAL 1 DAY
         FROM challenge_members WHERE challenge_id = p_challenge_id AND status = 'completed';
     ELSE
-      SET v_each = TRUNCATE((v_gross - v_fee) / v_total, 2);
+      SET v_each = FLOOR((v_gross - v_fee) / v_total);
       SET v_fee  = v_gross - v_each * v_total;
       INSERT INTO payouts (user_id, challenge_id, kind, amount, scheduled_for)
       SELECT user_id, p_challenge_id, 'refund', v_each, CURDATE() + INTERVAL 1 DAY

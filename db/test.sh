@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Rebuilds the fitcircle database from schema.sql + seed.sql, then checks every platform rule.
-# Usage: MYSQL="mysql -u root -pSECRET" db/test.sh   (defaults to: mysql -u root)
+# Usage: MYSQL_PWD=secret MYSQL="mysql -h 127.0.0.1 -u root" db/test.sh   (defaults to: mysql -u root)
 set -u
 cd "$(dirname "$0")"
 MYSQL=${MYSQL:-"mysql -u root"}
@@ -120,7 +120,7 @@ run "SET @fitcircle_backfill = 1;
        SELECT 30, u, CURDATE() - INTERVAL d DAY, TIMESTAMP(CURDATE() - INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
        FROM (SELECT 1 u UNION ALL SELECT 2 UNION ALL SELECT 3) a, (SELECT 3 d UNION ALL SELECT 5) b;
      CALL settle_challenge(30);" >/dev/null
-expect_value "3-way split of 280 rounds down, cents go to fee" "SELECT CONCAT(amount_each, '|', fee_amount) FROM settlements WHERE challenge_id = 30" "93.33|120.01"
+expect_value "3-way split of 280 pays whole shillings, remainder to fee" "SELECT CONCAT(amount_each, '|', fee_amount) FROM settlements WHERE challenge_id = 30" "93.00|121.00"
 
 echo
 echo "$pass passed, $fail failed"

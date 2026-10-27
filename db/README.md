@@ -9,14 +9,14 @@
 ```bash
 mysql -u root -p < db/schema.sql
 mysql -u root -p fitcircle < db/seed.sql
-MYSQL="mysql -u root -pYOURPASSWORD" db/test.sh
+MYSQL_PWD=YOURPASSWORD MYSQL="mysql -h 127.0.0.1 -u root" db/test.sh
 ```
 
 Every app connection should run `SET time_zone = '+03:00';` so "today" is Nairobi's day.
 
 ## Tables
 
-- **People:** `users`, `user_goals`, `organizations`, `organization_members` (corporate wellness)
+- **People:** `users`, `otp_codes` (SMS sign-in), `user_goals`, `organizations`, `organization_members` (corporate wellness)
 - **Instructors:** `instructor_profiles`, `instructor_documents` (certification, ID, demo video)
 - **Challenges:** `challenges` (peer, instructor, custom75 in one table), `challenge_tasks`, `challenge_members`
 - **Money in:** `payments` (M-Pesa, Flutterwave), `subscriptions`
@@ -41,4 +41,4 @@ nobody joins or withdraws after the start · only verified instructors host · n
 
 - `@fitcircle_backfill = 1` lets an admin session import past sessions. Never set it from the app.
 - Insert flags and payments by ID (`VALUES`), not `INSERT … SELECT` from the table the trigger updates; MySQL refuses that.
-- The fee is taken from the whole pool. If nobody completes, everyone is refunded what's left after the fee.
+- The fee is taken from the whole pool. Payouts are whole shillings (M-Pesa); leftover shillings go to the fee. If nobody completes, everyone is refunded what is left after the fee.

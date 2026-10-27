@@ -1,0 +1,7 @@
+{
+  "app": "npx tsx bin/fitcircle.ts",
+  "context": {
+    "@aws-cdk/aws-ecs:minHealthyPercent": true,
+    "@aws-cdk/core:enablePartitionLiterals": true
+  }
+}

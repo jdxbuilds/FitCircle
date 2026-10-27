@@ -1,0 +1,21 @@
+{
+  "name": "fitcircle-infra",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.275.0",
+    "constructs": "^10.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "aws-cdk": "^2.1146.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

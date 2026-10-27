@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            infra/package-lock.json
+
+      - name: Database rules (db/test.sh)
+        env:
+          MYSQL_PWD: root
+        run: MYSQL="mysql -h 127.0.0.1 -P 3306 -u root" bash db/test.sh
+
+      - name: API install, typecheck, build
+        working-directory: backend
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: API tests
+        working-directory: backend
+        env:
+          TEST_DB_USER: root
+          TEST_DB_PASSWORD: root
+        run: npm test
+
+      - name: AWS infrastructure synth
+        working-directory: infra
+        run: |
+          npm ci
+          npm run typecheck
+          npx cdk synth --quiet -c stage=staging
