@@ -142,6 +142,7 @@ h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spac
 
 /* welcome */
 .welcome{background:radial-gradient(120% 70% at 50% 0%, color-mix(in srgb,var(--peer) 22%,var(--surface)), var(--surface) 60%)}
+.future{display:block; margin-top:4px; background:linear-gradient(90deg,var(--peer),var(--gold) 40%,var(--d75) 70%,var(--coach)); -webkit-background-clip:text; background-clip:text; color:transparent}
 .orbit{position:relative; height:250px; display:grid; place-items:center; margin-top:4px}
 .orbit .o{position:absolute; width:150px; height:150px; border-radius:50%; mix-blend-mode:multiply; opacity:.9; animation:float 6s ease-in-out infinite}
 :root[data-theme="dark"] .orbit .o{mix-blend-mode:screen}
@@ -528,15 +529,15 @@ V.welcome = () => `
     <span class="eye"><span class="live"></span>4 friends are watching</span></div>
   <div style="display:flex;flex-direction:column;gap:10px">
     <span class="eyebrow" style="color:var(--peer)">Fitness · Accountability · Community</span>
-    <h3 class="big" style="font-size:38px">You won't quit when somebody's watching.</h3>
-    <p class="sub">Join a circle, put money on showing up, and prove every session. Show up and you win. Skip, and your stake goes to the people who came.</p>
+    <h3 class="big" style="font-size:38px">Welcome to FitCircle.<span class="future">A better future for you.</span></h3>
+    <p class="sub">Join a circle of people who show up for each other. Set your goal, prove every session, and win when you keep going.</p>
   </div>
   <div class="stick">
     <button class="btn" data-act="go" data-arg="start">Get started ${I.arrow}</button>
     <button class="btn ghost" data-act="invite">I have an invite code</button>
   </div>`;
 
-V.start = () => `${top('Welcome to FitCircle')}
+V.start = () => `${top('Get started')}
   <div><h3 class="big">How are you joining?</h3><p class="sub" style="margin-top:6px">Pick one. You can add the other later from your profile.</p></div>
   <span class="divider">New to FitCircle</span>
   <button class="choice member" data-act="signupAs" data-arg="member"><span class="ci">${I.users}</span>
