@@ -214,6 +214,22 @@ h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spac
 .task[aria-pressed="true"]{border-color:color-mix(in srgb,var(--seg) 40%,transparent)}
 .task small{margin-left:auto; color:var(--muted); font-weight:500}
 
+.choice{position:relative; display:flex; align-items:center; gap:14px; text-align:left; width:100%; border-radius:22px; padding:18px; color:#fff; overflow:hidden; transition:transform .2s}
+.choice:hover{transform:translateY(-2px)}
+.choice.member{background:linear-gradient(135deg,var(--peer),var(--peer2))}
+.choice.coach{background:linear-gradient(135deg,var(--coach),var(--coach2))}
+.choice .ci{width:48px; height:48px; border-radius:16px; background:rgba(255,255,255,.2); display:grid; place-items:center; flex:none}
+.choice .ci .ic{width:24px; height:24px}
+.choice b{display:block; font-family:var(--display); font-size:19px; letter-spacing:-.02em; line-height:1.15}
+.choice span.d{display:block; font-size:13px; opacity:.92; margin-top:3px}
+.choice::after{content:""; position:absolute; right:-36px; bottom:-46px; width:110px; height:110px; border-radius:50%; border:14px solid rgba(255,255,255,.16)}
+.signin{display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:14px; border-radius:18px; background:var(--surface2); border:1.5px solid transparent; transition:border-color .15s}
+.signin:hover{border-color:var(--line)}
+.signin .ci{width:40px; height:40px; border-radius:12px; display:grid; place-items:center; color:#fff; flex:none}
+.signin b{display:block; font-size:15px}
+.divider{display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase}
+.divider::before,.divider::after{content:""; flex:1; height:1px; background:var(--line)}
+.otp{letter-spacing:.5em; font-weight:800; font-size:22px!important; text-align:center}
 .coachcard{display:flex; gap:14px; padding:14px; border-radius:20px; background:var(--surface2); text-align:left; width:100%; transition:transform .15s}
 .coachcard:hover{transform:translateY(-2px)}
 .coachcard .ph{width:64px; height:64px; border-radius:16px; flex:none; display:grid; place-items:center; color:#fff; font-family:var(--display); font-weight:800; font-size:22px}
@@ -455,7 +471,8 @@ const COLORS = ['#F2481F','#2B55F5','#0A9A6B','#C2338A','#E08A00','#6A3DF2','#0F
 
 const fresh = () => ({
   screen:'welcome', hist:[], seg:'peer',
-  user:{name:'Amani', phone:'0712 345 678', age:'24', goals:['Consistency','Run a 10K']}, err:'',
+  user:{name:'Amani', phone:'0712 345 678', age:'24', goals:['Consistency','Run a 10K'], coaches:['Running']}, err:'',
+  signupAs:'member', signin:{as:'member', phone:'0712 345 678', sent:false, code:''},
   peer:{name:'Ofisi Movers', target:3, weeks:4, code:'FC-7Q2K'},
   coachId:'wanjiru',
   d75:{mode:'soft', tasks:['workout','water','read'], day:23, today:['water']},
@@ -499,7 +516,7 @@ const STEPS = [
   ['Challenge ends', 'Jackpot is settled', 'end'],
   ['Win and recruit', 'Share, start the next one', 'win'],
 ];
-const STEP_OF = {welcome:0, signup:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
+const STEP_OF = {welcome:0, start:0, signin:0, signup:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
 const setupScreen = () => S.seg === 'peer' ? 'setup' : S.seg === 'coach' ? 'browse' : 'build';
 
 // ---------- screens ----------
@@ -515,19 +532,44 @@ V.welcome = () => `
     <p class="sub">Join a circle, put money on showing up, and prove every session. Show up and you win. Skip, and your stake goes to the people who came.</p>
   </div>
   <div class="stick">
-    <button class="btn" data-act="go" data-arg="signup">Get started ${I.arrow}</button>
+    <button class="btn" data-act="go" data-arg="start">Get started ${I.arrow}</button>
     <button class="btn ghost" data-act="invite">I have an invite code</button>
   </div>`;
 
+V.start = () => `${top('Welcome to FitCircle')}
+  <div><h3 class="big">How are you joining?</h3><p class="sub" style="margin-top:6px">Pick one. You can add the other later from your profile.</p></div>
+  <span class="divider">New to FitCircle</span>
+  <button class="choice member" data-act="signupAs" data-arg="member"><span class="ci">${I.users}</span>
+    <span class="grow"><b>Become a FitCircle member</b><span class="d">Join challenges, stake on showing up, win the Jackpot.</span></span>${I.arrow}</button>
+  <button class="choice coach" data-act="signupAs" data-arg="coach"><span class="ci">${I.medal}</span>
+    <span class="grow"><b>Become an instructor</b><span class="d">Run paid programmes. Keep 65% of every entry fee.</span></span>${I.arrow}</button>
+  <span class="divider">Already on FitCircle</span>
+  <button class="signin" data-act="signinAs" data-arg="member"><span class="ci" style="background:linear-gradient(135deg,var(--peer),var(--peer2))">${I.users}</span>
+    <span class="grow"><b>FC Member</b><span class="small muted">Sign in to your challenges</span></span>${I.arrow}</button>
+  <button class="signin" data-act="signinAs" data-arg="coach"><span class="ci" style="background:linear-gradient(135deg,var(--coach),var(--coach2))">${I.medal}</span>
+    <span class="grow"><b>FC Instructor</b><span class="small muted">Sign in to your dashboard</span></span>${I.arrow}</button>`;
+
+V.signin = () => { const si = S.signin, coach = si.as === 'coach'; return `${top(coach ? 'Instructor sign in' : 'Member sign in')}
+  <div><span class="eyebrow" style="color:var(${coach ? '--coach' : '--peer'})">${coach ? 'FC Instructor' : 'FC Member'}</span>
+    <h3 class="big" style="margin-top:6px">Welcome back${coach ? ', Coach' : ''}.</h3>
+    <p class="sub" style="margin-top:6px">We'll text a 6-digit code to your phone. No password needed.</p></div>
+  <div class="field"><label for="f-siphone">Phone number</label><input id="f-siphone" data-bind="signin.phone" value="${esc(si.phone)}" inputmode="tel" ${si.sent ? 'disabled' : ''}></div>
+  ${si.sent ? `<div class="field"><label for="f-code">Code sent to ${esc(si.phone)}</label><input id="f-code" class="otp" data-bind="signin.code" value="${esc(si.code)}" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+    <span class="note">${I.shield}Demo: the code is filled in for you.</span></div>
+    <button class="link" data-act="resend">Didn't get it? Send again</button>` : ''}
+  <div class="stick"><button class="btn" data-act="${si.sent ? 'signinDone' : 'sendCode'}">${si.sent ? `Sign in ${I.arrow}` : 'Send code'}</button></div>`; };
+
 V.signup = () => {
-  const goals = ['Lose weight','Build strength','Run a 10K','Consistency','Mental toughness','Feel better'];
-  return `${top('Create your profile')}
+  const coach = S.signupAs === 'coach';
+  const goals = coach ? ['Running','Strength','HIIT','Yoga','Football','Dance','Boxing'] : ['Lose weight','Build strength','Run a 10K','Consistency','Mental toughness','Feel better'];
+  return `${top(coach ? 'Create your instructor profile' : 'Create your profile')}
   <div class="field"><label for="f-name">First name</label><input id="f-name" data-bind="user.name" value="${esc(S.user.name)}" autocomplete="given-name"></div>
   <div class="field"><label for="f-phone">Phone (for M-Pesa)</label><input id="f-phone" data-bind="user.phone" value="${esc(S.user.phone)}" inputmode="tel"></div>
   <div class="field"><label for="f-age">Age</label><input id="f-age" data-bind="user.age" value="${esc(S.user.age)}" inputmode="numeric" maxlength="2">
-    ${S.err ? `<span class="err" role="alert">${S.err}</span>` : +S.user.age >= 16 && +S.user.age < 18 ? `<span class="note">${I.shield}You can join any challenge. Staked challenges open when you turn 18.</span>` : ''}</div>
-  <div class="field"><label>What are you working towards?</label>
-    <div class="chips">${goals.map(g => `<button class="chip" data-act="goal" data-arg="${g}" aria-pressed="${S.user.goals.includes(g)}">${g}</button>`).join('')}</div></div>
+    ${S.err ? `<span class="err" role="alert">${S.err}</span>` : S.signupAs !== 'coach' && +S.user.age >= 16 && +S.user.age < 18 ? `<span class="note">${I.shield}You can join any challenge. Staked challenges open when you turn 18.</span>` : ''}</div>
+  <div class="field"><label>${coach ? 'What do you coach?' : 'What are you working towards?'}</label>
+    <div class="chips">${goals.map(g => `<button class="chip" data-act="goal" data-arg="${g}" aria-pressed="${(coach ? S.user.coaches : S.user.goals).includes(g)}">${g}</button>`).join('')}</div></div>
+  ${coach ? `<p class="note">${I.shield}Next, we verify your certification, ID and a short demo video before you can host.</p>` : ''}
   <div class="stick"><button class="btn" data-act="signup">Continue ${I.arrow}</button></div>`;
 };
 
@@ -964,13 +1006,26 @@ const A = {
   back: () => { S.screen = S.hist.pop() || 'welcome'; S.sheet = null; render(); },
   restart: () => { const seg = S.seg; S = fresh(); S.seg = seg; render(); },
   teen: () => { S = Object.assign(fresh(), {seg:S.seg}); S.user.age = '17'; S.hist = ['welcome']; go('signup', false); },
-  goal: g => { const G = S.user.goals; G.includes(g) ? G.splice(G.indexOf(g), 1) : G.push(g); render(false); },
+  goal: g => { const G = S.signupAs === 'coach' && S.screen === 'signup' ? S.user.coaches : S.user.goals; G.includes(g) ? G.splice(G.indexOf(g), 1) : G.push(g); render(false); },
   signup: () => {
     const age = +S.user.age;
     if (!S.user.name.trim()) { S.err = ''; toast('Add your first name to continue'); return; }
     if (!age || age < 16) { S.err = 'FitCircle is for ages 16 and up.'; render(false); return; }
+    if (S.signupAs === 'coach') {
+      if (age < 18) { S.err = 'Instructors must be 18 or older.'; render(false); return; }
+      S.err = ''; S.role = 'coach'; S.seg = 'coach'; S.user.name = S.user.name.trim(); go('cVerify'); return;
+    }
     S.err = ''; if (age < 18) S.noStake = true; go('format');
   },
+  signupAs: k => { S.signupAs = k; S.err = ''; if (k === 'coach') { S.user.name = 'Wanjiru'; S.user.age = '34'; } else if (S.user.name === 'Wanjiru') { S.user.name = 'Amani'; S.user.age = '24'; } go('signup'); },
+  signinAs: k => { S.signin = {as:k, phone: k === 'coach' ? '0733 000 007' : '0712 345 678', sent:false, code:''}; go('signin'); },
+  sendCode: () => { if (!S.signin.phone.replace(/\D/g, '').match(/^(0|254)?[17]\d{8}$/)) { toast('Enter a Kenyan mobile number, like 0712 345 678'); return; }
+    S.signin.sent = true; S.signin.code = '482913'; render(false); toast(`Code sent to ${S.signin.phone}`); },
+  resend: () => toast(`New code sent to ${S.signin.phone}`),
+  signinDone: () => { if (!/^\d{6}$/.test(S.signin.code)) { toast('Enter the 6-digit code from the SMS'); return; }
+    S.hist = [];
+    if (S.signin.as === 'coach') { S.role = 'coach'; S.seg = 'coach'; go('cDash', false); toast('Welcome back, Coach Wanjiru'); }
+    else { S.role = 'member'; if (S.seg === 'coach' && S.role !== 'coach') S.seg = 'peer'; go('home', false); toast(`Welcome back, ${S.user.name || 'Amani'}`); } },
   pickSeg: k => { S.seg = k; go(setupScreen()); },
   railSeg: k => {
     S.seg = k; const st = STEP_OF[S.screen];
