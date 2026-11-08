@@ -44,7 +44,9 @@ INSERT INTO platform_settings (setting_key, setting_value, description) VALUES
   ('min_age_join',        '16', 'Minimum age to create an account'),
   ('min_age_stake',       '18', 'Minimum age to join a staked challenge'),
   ('open_flags_review',   '3',  'Open flags on a user that trigger an account review'),
-  ('default_currency',    'KES','Currency for stakes, fees and payouts');
+  ('default_currency',    'KES','Currency for stakes, fees and payouts'),
+  ('terms_version_member',     '2026-11-08.v1', 'Member terms version people must accept to sign up'),
+  ('terms_version_instructor', '2026-11-08.v1', 'Instructor terms version instructors must accept to apply');
 
 -- ---------------------------------------------------------------------
 -- People
@@ -59,6 +61,8 @@ CREATE TABLE users (
   role           ENUM('member','instructor','admin') NOT NULL DEFAULT 'member',
   status         ENUM('active','under_review','suspended','deleted') NOT NULL DEFAULT 'active',
   is_premium     BOOLEAN      NOT NULL DEFAULT FALSE,
+  terms_version  VARCHAR(20),                      -- member terms accepted, and when
+  terms_accepted_at DATETIME,
   avatar_url     VARCHAR(500),
   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -113,6 +117,8 @@ CREATE TABLE instructor_profiles (
   verification   ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
   verified_at    DATETIME,
   payout_phone   VARCHAR(20) NOT NULL,             -- where M-Pesa payouts go
+  terms_version  VARCHAR(20),                      -- instructor terms accepted, and when
+  terms_accepted_at DATETIME,
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_instr_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB;

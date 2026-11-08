@@ -19,7 +19,10 @@ describe('instructor journey', () => {
     const coach = await signUp(t, 'Wanjiru', 34);
 
     // Apply and upload the three documents
-    expect((await call(t, 'POST', '/instructor/profile', coach.token, { displayName: 'Coach Wanjiru M.', specialties: 'Running' })).status).toBe(201);
+    const noTerms = await call(t, 'POST', '/instructor/profile', coach.token, { displayName: 'Coach Wanjiru M.', specialties: 'Running' });
+    expect(noTerms.status).toBe(400);
+    expect(noTerms.body.error.message).toContain('accept the instructor terms');
+    expect((await call(t, 'POST', '/instructor/profile', coach.token, { displayName: 'Coach Wanjiru M.', specialties: 'Running', acceptInstructorTerms: true })).status).toBe(201);
     const docs = { certification: 'application/pdf', national_id: 'image/jpeg', demo_video: 'video/mp4' } as const;
     for (const [docType, contentType] of Object.entries(docs)) {
       const up = await call(t, 'POST', '/instructor/uploads', coach.token, { purpose: docType, contentType });

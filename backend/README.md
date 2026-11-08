@@ -63,7 +63,8 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 |---|---|
 | `POST /auth/otp` `{phone}` | Text a 6-digit code (Kenyan numbers, any format) |
 | `POST /auth/verify` `{phone, code}` | Existing user → `token`; new number → `signupToken` |
-| `POST /auth/signup` `{signupToken, firstName, dateOfBirth, goals[]}` | Create the profile → `token` |
+| `GET /terms` | Current member and instructor terms versions |
+| `POST /auth/signup` `{signupToken, firstName, dateOfBirth, goals[], acceptTerms: true}` | Create the profile → `token`. Refused without accepting the member terms; the version and time are stored |
 | `GET /me` · `PATCH /me` | Profile, goals, `canStake`, instructor status |
 | `GET /notifications?unread=1` · `POST /notifications/read` | Reminders, nudges, plans, results |
 
@@ -104,7 +105,7 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 
 | | |
 |---|---|
-| `POST /instructor/profile` | Apply |
+| `POST /instructor/profile` `{displayName, …, acceptInstructorTerms: true}` | Apply. Refused without accepting the instructor terms; the version and time are stored |
 | `POST /instructor/uploads {purpose, contentType}` → `POST /instructor/documents {docType, key}` | Certification, national ID, demo video, voice notes |
 | `GET /instructor/dashboard` | Programmes, fees, your 65% share, logged today, at risk, open flags, earnings, payouts |
 | `POST /challenges/:id/plans` | Post the day's plan; every participant is notified |

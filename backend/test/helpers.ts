@@ -61,7 +61,7 @@ export async function call(t: TestApp, method: InjectOptions['method'], url: str
 export async function signUp(t: TestApp, firstName: string, age = 25, phone = newPhone()) {
   const otp = await call(t, 'POST', '/auth/otp', undefined, { phone });
   const verify = await call(t, 'POST', '/auth/verify', undefined, { phone, code: otp.body.devCode });
-  const signup = await call(t, 'POST', '/auth/signup', undefined, { signupToken: verify.body.signupToken, firstName, dateOfBirth: yearsAgo(age) });
+  const signup = await call(t, 'POST', '/auth/signup', undefined, { signupToken: verify.body.signupToken, firstName, dateOfBirth: yearsAgo(age), acceptTerms: true });
   if (signup.status !== 200) throw new Error(`signup failed: ${JSON.stringify(signup.body)}`);
   return { token: signup.body.token as string, id: signup.body.userId as number, phone };
 }

@@ -20,6 +20,7 @@ export function instructorRoutes(app: FastifyInstance, ctx: Ctx) {
         bio: z.string().trim().max(2000).optional(),
         specialties: z.string().trim().max(255).optional(),
         payoutPhone: z.string().optional(),
+        acceptInstructorTerms: z.literal(true, { errorMap: () => ({ message: 'Read and accept the instructor terms to continue' }) }),
       }),
       req.body,
     );
@@ -27,8 +28,10 @@ export function instructorRoutes(app: FastifyInstance, ctx: Ctx) {
     if (!payoutPhone) throw badRequest('Enter a Kenyan mobile number for payouts');
     await exec(
       ctx.db,
-      `INSERT INTO instructor_profiles (user_id, display_name, bio, specialties, payout_phone) VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), bio = VALUES(bio), specialties = VALUES(specialties), payout_phone = VALUES(payout_phone)`,
+      `INSERT INTO instructor_profiles (user_id, display_name, bio, specialties, payout_phone, terms_version, terms_accepted_at)
+       VALUES (?, ?, ?, ?, ?, (SELECT setting_value FROM platform_settings WHERE setting_key = 'terms_version_instructor'), NOW())
+       ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), bio = VALUES(bio), specialties = VALUES(specialties),
+                               payout_phone = VALUES(payout_phone), terms_version = VALUES(terms_version), terms_accepted_at = NOW()`,
       [u.id, body.displayName, body.bio ?? null, body.specialties ?? null, payoutPhone],
     );
     return reply.status(201).send({ ok: true });

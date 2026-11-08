@@ -2,7 +2,7 @@ import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { parse, signToken, verifyToken, type Ctx } from '../app.js';
-import { exec, one, tx } from '../db.js';
+import { exec, one, rows, tx } from '../db.js';
 import { ApiError, badRequest, guard } from '../lib/errors.js';
 import { normalizeKenyanPhone } from '../lib/phone.js';
 
@@ -62,6 +62,16 @@ export function authRoutes(app: FastifyInstance, ctx: Ctx) {
     return { isNewUser: true, signupToken: await signToken(ctx, { purpose: 'signup', phone }, phone, '30m') };
   });
 
+  // Current terms versions (the app shows the text and sends acceptance with sign-up / instructor application)
+  app.get('/terms', async () => {
+    const r = await rows<{ setting_key: string; setting_value: string }>(
+      ctx.db,
+      "SELECT setting_key, setting_value FROM platform_settings WHERE setting_key IN ('terms_version_member', 'terms_version_instructor')",
+    );
+    const v = Object.fromEntries(r.map((x) => [x.setting_key, x.setting_value]));
+    return { member: v.terms_version_member, instructor: v.terms_version_instructor };
+  });
+
   // Step 3 (new users): create the profile
   app.post('/auth/signup', async (req) => {
     const body = parse(
@@ -72,6 +82,7 @@ export function authRoutes(app: FastifyInstance, ctx: Ctx) {
         email: z.string().email().optional(),
         dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
         goals: z.array(z.enum(GOALS)).max(6).default([]),
+        acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Read and accept the member terms to continue' }) }),
       }),
       req.body,
     );
@@ -86,7 +97,8 @@ export function authRoutes(app: FastifyInstance, ctx: Ctx) {
         tx(ctx.db, async (conn) => {
           const res = await exec(
             conn,
-            'INSERT INTO users (first_name, last_name, phone, email, date_of_birth) VALUES (?, ?, ?, ?, ?)',
+            `INSERT INTO users (first_name, last_name, phone, email, date_of_birth, terms_version, terms_accepted_at)
+             VALUES (?, ?, ?, ?, ?, (SELECT setting_value FROM platform_settings WHERE setting_key = 'terms_version_member'), NOW())`,
             [body.firstName, body.lastName ?? null, phone, body.email ?? null, body.dateOfBirth],
           );
           for (const g of new Set(body.goals)) await exec(conn, 'INSERT INTO user_goals (user_id, goal) VALUES (?, ?)', [res.insertId, g]);

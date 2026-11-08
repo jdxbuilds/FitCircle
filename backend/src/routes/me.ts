@@ -12,7 +12,7 @@ export function meRoutes(app: FastifyInstance, ctx: Ctx) {
     const profile = await one(
       ctx.db,
       `SELECT id, first_name AS firstName, last_name AS lastName, phone, email, date_of_birth AS dateOfBirth,
-              role, status, is_premium AS isPremium, created_at AS createdAt FROM users WHERE id = ?`,
+              role, status, is_premium AS isPremium, terms_version AS termsVersion, terms_accepted_at AS termsAcceptedAt, created_at AS createdAt FROM users WHERE id = ?`,
       [u.id],
     );
     const goals = (await rows<{ goal: string }>(ctx.db, 'SELECT goal FROM user_goals WHERE user_id = ?', [u.id])).map((g) => g.goal);

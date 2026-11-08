@@ -109,6 +109,23 @@ h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spac
 .btn.ghost{background:var(--surface2); color:var(--ink); box-shadow:none}
 .btn.dark{background:var(--ink); color:var(--surface); box-shadow:none}
 .btn[disabled]{opacity:.45; pointer-events:none}
+.terms{display:flex; flex-direction:column; gap:14px}
+.terms h4{margin:6px 0 0; font-family:var(--display); font-size:17px; letter-spacing:-.01em}
+.terms ol{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:7px; font-size:13.5px; line-height:1.5}
+.terms li::marker{color:var(--muted); font-weight:700}
+.terms .ver{font-size:12px; color:var(--muted)}
+.terms .draft{font-size:12px; font-weight:700; color:var(--warn); background:color-mix(in srgb,var(--warn) 12%,transparent); padding:8px 12px; border-radius:12px}
+.keypts{background:var(--surface2); border-radius:18px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; font-size:13.5px}
+.keypts b{display:block; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+.keypts div{display:flex; gap:10px; align-items:flex-start}
+.keypts .ic{width:16px; height:16px; color:var(--seg); margin-top:2px}
+.tseg{border-radius:18px; padding:14px 16px; border:1.5px solid color-mix(in srgb,var(--c) 35%,transparent); background:color-mix(in srgb,var(--c) 7%,var(--surface)); display:flex; flex-direction:column; gap:8px}
+.tseg .tag{align-self:flex-start; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#fff; background:var(--c); padding:4px 9px; border-radius:999px}
+.tseg dl{margin:0; display:grid; grid-template-columns:minmax(0,1fr); gap:6px; font-size:13.5px}
+.tseg dt{font-weight:700; font-size:12.5px; color:var(--muted)}
+.tseg dd{margin:0 0 4px}
+.acceptbar{position:sticky; bottom:-28px; margin:0 -20px -28px; padding:10px 20px 18px; background:var(--surface); border-top:1px solid var(--line); box-shadow:0 -14px 18px -6px var(--surface); display:flex; flex-direction:column; gap:8px}
+.acceptbar .hint{font-size:12.5px; color:var(--muted); text-align:center}
 .stick{margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:8px}
 .link{color:var(--seg); font-weight:700; font-size:14px; text-align:center}
 
@@ -521,7 +538,7 @@ const STEPS = [
   ['Challenge ends', 'Jackpot is settled', 'end'],
   ['Win and recruit', 'Share, start the next one', 'win'],
 ];
-const STEP_OF = {welcome:0, start:0, signin:0, signup:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
+const STEP_OF = {welcome:0, start:0, signin:0, signup:0, terms:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
 const setupScreen = () => S.seg === 'peer' ? 'setup' : S.seg === 'coach' ? 'browse' : 'build';
 
 // ---------- screens ----------
@@ -540,6 +557,152 @@ V.welcome = () => `
     <button class="btn" data-act="go" data-arg="start">Get started ${I.arrow}</button>
     <button class="btn ghost" data-act="invite">I have an invite code</button>
   </div>`;
+
+const TERMS_VERSION = 'v1 · 8 November 2026';
+const MEMBER_TERMS = [
+  ['1. About these terms', [
+    'These terms are an agreement between you and FitCircle. They apply every time you use the app, join a challenge or stake money.',
+    'By tapping "I understand and accept" you confirm you have read them and agree to follow them.',
+  ]],
+  ['2. Who can join', [
+    'You must be 16 or older to create an account, and 18 or older to join any challenge with a stake.',
+    'You may have one account only, linked to your own phone number. You must give your real name and date of birth.',
+    'Keep your phone and SMS codes private. You are responsible for everything done from your account.',
+  ]],
+  ['3. Showing up and proof', [
+    'Every session needs proof: a photo or short video taken and uploaded in the app on the same day (Nairobi time). Earlier days cannot be logged.',
+    'One session counts per day per challenge. No proof means no credit.',
+    'Your proof must be real, recent and of you. Members of your challenge can see it.',
+  ]],
+];
+const MEMBER_SEGMENTS = [
+  ['peer', 'Peer Groups', [
+    ['You commit to', 'The weekly session target your group sets (2 to 7 sessions a week), for the whole challenge.'],
+    ["You're out when", 'You miss 3 sessions in one week. In groups with a 2-a-week target, missing both sessions in a week puts you out. Removal is automatic.'],
+    ['If you are out', 'Your stake is forfeited: 60% goes to FitCircle and 40% is shared equally by the members who finish.'],
+    ['If you finish', 'You get your full stake back plus your share of the 40%.'],
+    ['If you fall short', 'If you stay in but miss your weekly target, you will not finish and your stake is forfeited at the end in the same way.'],
+  ]],
+  ['d75', '75 Hard and 75 Soft', [
+    ['You commit to', 'Every daily task you chose, every day, for 75 days, with proof each day.'],
+    ["You're out when", 'You miss 3 days in total. A day counts only when every task is ticked and proof is uploaded.'],
+    ['If you are out', 'FitCircle keeps 100% of your stake.'],
+    ['If you finish', 'You get your full stake back.'],
+  ]],
+  ['coach', 'Instructor Challenges', [
+    ['You commit to', "The instructor's programme and weekly session target."],
+    ["You're out when", 'You miss 3 sessions in one week. Removal is automatic.'],
+    ['Your entry fee', 'Entry fees are not refunded once the programme starts, whether you finish or not. If you are removed, 60% of your fee goes to FitCircle and 40% to the instructor.'],
+    ['Safety', "Follow the instructor's plan within your own limits and tell them about any injury or condition before you start."],
+  ]],
+];
+const MEMBER_TERMS_2 = [
+  ['5. Stakes and payments', [
+    'Staking is optional. Stakes are KES 200, 500, 1,000, 2,000, 5,000 or 10,000, the same for everyone in a challenge.',
+    'You pay by M-Pesa or card (Flutterwave) before the challenge starts. If you have not paid by the start, you are removed from it.',
+    'You can leave before the start and get your money back in full. Once a challenge starts, stakes are locked: you cannot leave or withdraw.',
+    'Stakes are not returned for illness, injury, travel or a lost phone.',
+    'A payment that reaches us after the challenge has started is refunded automatically.',
+  ]],
+  ['6. Settlement and payouts', [
+    'Challenges are settled automatically the night after they end. Payouts go to your M-Pesa number the day after settlement.',
+    'M-Pesa pays whole shillings. Shares are rounded down to the shilling and the leftover goes to FitCircle.',
+    'If nobody in a Peer Group finishes, FitCircle keeps the forfeited stakes.',
+    'A challenge with a flag still under review is settled once the flag is decided.',
+  ]],
+  ['7. Fair play', [
+    'Anyone in a challenge can flag proof that looks fake. You cannot flag your own proof.',
+    'Flags are reviewed by the instructor (Instructor Challenges) or the FitCircle team. If a flag is upheld, that session does not count.',
+    'If 3 of your sessions have open flags at once, your account is placed under review and you cannot log until it is cleared.',
+    'Faking proof, using someone else\'s proof or running more than one account leads to removal from the challenge, loss of your stake and suspension of your account.',
+  ]],
+  ['8. Health and safety', [
+    'FitCircle is not medical advice. Check with a doctor before starting if you have any health condition, are pregnant or have not exercised for a while.',
+    'Never train through pain, illness or injury to protect a stake. You take part at your own risk.',
+  ]],
+  ['9. Your data', [
+    'We collect your name, phone number, date of birth, payment records and the proof you upload, to run challenges and pay you.',
+    'Your proof is shown to the people in your challenge. We handle your data under Kenya\'s Data Protection Act, 2019, and you can ask to see or delete it.',
+    'We send reminders at 06:30 and 19:00 while a challenge runs. Members can nudge you once a day if you have not logged.',
+  ]],
+  ['10. Changes and ending your account', [
+    'We may update these terms. You will see the new version and must accept it before your next challenge. Rules never change during a challenge you are already in.',
+    'We may suspend or close an account that breaks these terms. You can close your account at any time once you have no challenge running.',
+    'These terms are governed by the laws of Kenya.',
+  ]],
+];
+const COACH_TERMS = [
+  ['1. About these terms', [
+    'These terms apply to you as a FitCircle instructor, in addition to the Member Terms.',
+    'By tapping "I understand and accept" you confirm you have read them and agree to follow them.',
+  ]],
+  ['2. Becoming verified', [
+    'You must be 18 or older and hold a recognised fitness qualification.',
+    'Before you can host, you upload a fitness certification, your national ID or passport and a 60-second demo video. The FitCircle team must approve all three.',
+    'Everything you upload must be genuine and your own. FitCircle may withdraw verification at any time if it is not.',
+  ]],
+  ['3. Your relationship with FitCircle', [
+    'You are an independent instructor, not a FitCircle employee. You decide how you coach, within these terms.',
+    'You are responsible for your own taxes and for any registration your work requires.',
+  ]],
+];
+const COACH_SEGMENT = ['coach', 'Your programmes and earnings', [
+  ['Programmes', 'Programmes run 1 to 12 weeks, with a weekly target of at least 2 sessions. You set the entry fee, number of places and description, and they must be accurate.'],
+  ['Locked at the start', 'Once a programme starts, its dates, target and fee cannot change.'],
+  ['Members who finish', 'You receive 65% of their entry fees. FitCircle keeps 35%.'],
+  ['Members who are removed', 'Members who miss 3 sessions in a week are removed automatically. You receive 40% of their entry fees and FitCircle keeps 60%.'],
+  ['Getting paid', 'Earnings are paid by M-Pesa to your payout number the day after the programme is settled, in whole shillings.'],
+]];
+const COACH_TERMS_2 = [
+  ['5. Your duties', [
+    'Post a clear plan for each training day and keep sessions safe and suitable for beginners as well as fitter members.',
+    'Do not give medical advice. Tell members to see a doctor where needed.',
+    'Review flagged proof in your programmes promptly and fairly. Settlement waits until every flag is decided.',
+  ]],
+  ['6. Conduct', [
+    'Treat members with respect. Harassment, discrimination or inappropriate contact leads to removal.',
+    'Do not take payments from FitCircle members outside the app for FitCircle programmes.',
+    'Never approve proof you know is fake, or ask members to fake proof.',
+  ]],
+  ['7. Content and member data', [
+    'You own the plans, videos and voice notes you create. You allow FitCircle to show them in the app and to use them to promote your programmes.',
+    'Use members\' details only to run your programme. Do not copy or share them.',
+  ]],
+  ['8. Insurance and liability', [
+    'You are responsible for the safety of the training you plan. We strongly recommend you hold professional liability insurance.',
+  ]],
+  ['9. Suspension and changes', [
+    'FitCircle may pause your programmes or remove your verification if you break these terms or receive upheld safety complaints. Members already paid in will be treated fairly.',
+    'We may update these terms. You must accept the new version before your next programme starts. These terms are governed by the laws of Kenya.',
+  ]],
+];
+
+V.terms = () => {
+  const coach = S.termsFor === 'coach';
+  const block = ([h, items]) => `<h4>${h}</h4><ol>${items.map(t => `<li>${esc(t)}</li>`).join('')}</ol>`;
+  const seg = ([k, title, rows]) => `<section class="tseg" style="--c:var(--${k})"><span class="tag">${title}</span>
+    <dl>${rows.map(([dt, dd]) => `<dt>${dt}</dt><dd>${esc(dd)}</dd>`).join('')}</dl></section>`;
+  const key = coach
+    ? [['shield', 'You must be verified before you can host.'], ['coin', 'You earn 65% of fees from members who finish and 40% from members who are removed.'], ['lock', 'Programmes are locked once they start.'], ['flag', 'You review flags in your programmes fairly and promptly.']]
+    : [['camera', 'Log every session the same day, with real proof.'], ['flame', 'Miss 3 sessions in a week (3 days in 75-day challenges) and you are out.'], ['coin', 'Finish and you always get your full stake back.'], ['lock', 'Stakes are locked once a challenge starts.']];
+  return `${top(coach ? 'Instructor terms' : 'Member terms')}
+  <div class="terms">
+    <div><span class="eyebrow">${coach ? 'FitCircle instructors' : 'FitCircle members'}</span>
+      <h3 class="big" style="margin-top:6px">Terms and conditions</h3>
+      <span class="ver">${TERMS_VERSION}</span></div>
+    <div class="draft">Draft for legal review. Not yet final.</div>
+    <div class="keypts"><b>The key points</b>${key.map(([ic, t]) => `<div>${I[ic]}<span>${t}</span></div>`).join('')}</div>
+    ${coach
+      ? COACH_TERMS.map(block).join('') + `<h4>4. Your programmes and earnings</h4>` + seg(COACH_SEGMENT) + COACH_TERMS_2.map(block).join('')
+      : MEMBER_TERMS.map(block).join('') + `<h4>4. Rules for each challenge</h4><p class="sub" style="font-size:13.5px">Each format has its own rules. Read the ones for the challenges you join.</p>` + MEMBER_SEGMENTS.map(seg).join('') + MEMBER_TERMS_2.map(block).join('')}
+    <p class="sub" style="font-size:13px">Questions? Contact FitCircle through Help in the app before you accept.</p>
+  </div>
+  <div class="acceptbar">
+    <span class="hint" id="terms-hint">${S.termsRead ? 'Thanks for reading.' : 'Scroll to the end to accept.'}</span>
+    <button class="btn" id="terms-accept" data-act="acceptTerms" ${S.termsRead ? '' : 'disabled'}>${I.check} I understand and accept</button>
+    <button class="link" data-act="declineTerms">Decline</button>
+  </div>`;
+};
 
 V.start = () => `${top('Get started')}
   <div><h3 class="big">How are you joining?</h3><p class="sub" style="margin-top:6px">Pick one. You can add the other later from your profile.</p></div>
@@ -1025,10 +1188,18 @@ const A = {
     if (!age || age < 16) { S.err = 'FitCircle is for ages 16 and up.'; render(false); return; }
     if (S.signupAs === 'coach') {
       if (age < 18) { S.err = 'Instructors must be 18 or older.'; render(false); return; }
-      S.err = ''; S.role = 'coach'; S.seg = 'coach'; S.user.name = S.user.name.trim(); go('cVerify'); return;
+      S.err = ''; S.user.name = S.user.name.trim(); A.showTerms('coach'); return;
     }
-    S.err = ''; if (age < 18) S.noStake = true; go('format');
+    S.err = ''; if (age < 18) S.noStake = true; A.showTerms('member');
   },
+  showTerms: who => { S.termsFor = who; S.termsRead = false; go('terms'); },
+  acceptTerms: () => {
+    if (!S.termsRead) { toast('Scroll to the end of the terms first'); return; }
+    S.accepted = { ...(S.accepted || {}), [S.termsFor]: TERMS_VERSION };
+    if (S.termsFor === 'coach') { S.role = 'coach'; S.seg = 'coach'; S.hist = []; go('cVerify', false); toast('Instructor terms accepted'); }
+    else { S.hist = []; go('format', false); toast('Terms accepted. Welcome to FitCircle.'); }
+  },
+  declineTerms: () => { S.hist = []; go('start', false); toast('You need to accept the terms to use FitCircle.'); },
   signupAs: k => { S.signupAs = k; S.err = ''; if (k === 'coach') { S.user.name = 'Wanjiru'; S.user.age = '34'; } else if (S.user.name === 'Wanjiru') { S.user.name = 'Amani'; S.user.age = '24'; } go('signup'); },
   signinAs: k => { S.signin = {as:k, phone: k === 'coach' ? '0733 000 007' : '0712 345 678', sent:false, code:''}; go('signin'); },
   sendCode: () => { if (!S.signin.phone.replace(/\D/g, '').match(/^(0|254)?[17]\d{8}$/)) { toast('Enter a Kenyan mobile number, like 0712 345 678'); return; }
@@ -1086,7 +1257,7 @@ const A = {
   skipEnd: () => { S.role = 'member'; S.logged = true; S.hist = ['home']; go('end', false); if (staked() && S.seg !== 'coach') setTimeout(confetti, 900); },
   copy: txt => { const done = () => toast('Copied to clipboard');
     try { navigator.clipboard.writeText(txt).then(done, () => toast(txt)); } catch (e) { toast(txt); } },
-  trainer: () => { S.role = 'coach'; S.seg = 'coach'; go('cVerify'); },
+  trainer: () => { if (S.accepted?.coach) { S.role = 'coach'; S.seg = 'coach'; go('cVerify'); } else A.showTerms('coach'); },
   role: r => { if (r === S.role) return; S.role = r; S.hist = [];
     if (r === 'coach') { S.seg = 'coach'; go('cDash', false); } else { S.screen = 'welcome'; render(); } },
   cstep: k => { if (k === 'member') return A.role('member'); S.role = 'coach'; S.seg = 'coach';
@@ -1133,6 +1304,18 @@ phone.addEventListener('mouseleave', hideTip);
 phone.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(el); });
 phone.addEventListener('focusout', hideTip);
 $('screen').addEventListener('scroll', hideTip);
+// Terms: the accept button unlocks once the reader reaches the end
+const checkTermsRead = () => {
+  if (S.screen !== 'terms' || S.termsRead) return;
+  const sc = $('screen');
+  if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 60) {
+    S.termsRead = true;
+    const btn = $('terms-accept'), hint = $('terms-hint');
+    if (btn) btn.disabled = false;
+    if (hint) hint.textContent = 'Thanks for reading.';
+  }
+};
+$('screen').addEventListener('scroll', checkTermsRead);
 render(false);
 })();
 </script>

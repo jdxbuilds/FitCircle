@@ -17,11 +17,13 @@ describe('sign-in with an SMS code', () => {
     expect(verify.body).toMatchObject({ isNewUser: true });
 
     const signup = await call(t, 'POST', '/auth/signup', undefined, {
-      signupToken: verify.body.signupToken, firstName: 'Amani', dateOfBirth: yearsAgo(24), goals: ['consistency', 'run_10k'],
+      signupToken: verify.body.signupToken, firstName: 'Amani', dateOfBirth: yearsAgo(24), goals: ['consistency', 'run_10k'], acceptTerms: true,
     });
     expect(signup.status).toBe(200);
 
     const me = await call(t, 'GET', '/me', signup.body.token);
+    expect(me.body.termsVersion).toBe((await call(t, 'GET', '/terms')).body.member);
+    expect(me.body.termsAcceptedAt).toBeTruthy();
     expect(me.body).toMatchObject({ firstName: 'Amani', canStake: true, goals: expect.arrayContaining(['consistency', 'run_10k']) });
 
     const again = await call(t, 'POST', '/auth/otp', undefined, { phone });
@@ -44,11 +46,20 @@ describe('sign-in with an SMS code', () => {
     expect(res.body.error.message).toContain('Kenyan mobile number');
   });
 
+  it('refuses sign-up without accepting the member terms', async () => {
+    const phone = newPhone();
+    const otp = await call(t, 'POST', '/auth/otp', undefined, { phone });
+    const verify = await call(t, 'POST', '/auth/verify', undefined, { phone, code: otp.body.devCode });
+    const res = await call(t, 'POST', '/auth/signup', undefined, { signupToken: verify.body.signupToken, firstName: 'Skip', dateOfBirth: yearsAgo(25) });
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toContain('accept the member terms');
+  });
+
   it('refuses under-16s (rule enforced by the database)', async () => {
     const phone = newPhone();
     const otp = await call(t, 'POST', '/auth/otp', undefined, { phone });
     const verify = await call(t, 'POST', '/auth/verify', undefined, { phone, code: otp.body.devCode });
-    const res = await call(t, 'POST', '/auth/signup', undefined, { signupToken: verify.body.signupToken, firstName: 'Teen', dateOfBirth: yearsAgo(15) });
+    const res = await call(t, 'POST', '/auth/signup', undefined, { signupToken: verify.body.signupToken, firstName: 'Teen', dateOfBirth: yearsAgo(15), acceptTerms: true });
     expect(res.status).toBe(422);
     expect(res.body.error.message).toBe('FitCircle is for ages 16 and up');
   });
