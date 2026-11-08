@@ -46,7 +46,7 @@ const inviteCode = () => 'FC-' + Array.from({ length: 5 }, () => CODE_CHARS[rand
 const SUMMARY = `
   c.id, c.type, c.title, c.status, c.start_date AS startDate, c.end_date AS endDate, c.duration_days AS durationDays,
   c.sessions_per_week AS sessionsPerWeek, c.mode_75 AS mode75, c.is_staked AS isStaked, c.stake_amount AS stake,
-  c.entry_fee AS entryFee, c.currency, c.fee_pct AS feePct, c.capacity, c.instructor_id AS instructorId,
+  c.entry_fee AS entryFee, c.currency, c.fee_pct AS feePct, c.forfeit_pct AS forfeitPct, c.capacity, c.instructor_id AS instructorId,
   ip.display_name AS instructorName,
   (SELECT COUNT(*) FROM challenge_members cm WHERE cm.challenge_id = c.id AND cm.status <> 'withdrawn') AS members`;
 
@@ -156,7 +156,7 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
     const summary = await one(
       ctx.db,
       `SELECT ${SUMMARY}, c.description, ${a.memberStatus || a.isHost ? 'c.invite_code AS inviteCode,' : ''}
-              j.pool, j.projected_fee AS projectedFee
+              j.pool, j.forfeited
          FROM challenges c LEFT JOIN instructor_profiles ip ON ip.user_id = c.instructor_id
          LEFT JOIN v_jackpots j ON j.challenge_id = c.id WHERE c.id = ?`,
       [id],
@@ -164,7 +164,8 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
     const tasks = await rows(ctx.db, 'SELECT id, title FROM challenge_tasks WHERE challenge_id = ? ORDER BY sort_order', [id]);
     const settlement = await one(
       ctx.db,
-      `SELECT gross_amount AS gross, fee_pct AS feePct, fee_amount AS fee, completers, forfeiters, amount_each AS amountEach, settled_at AS settledAt
+      `SELECT gross_amount AS gross, forfeited_amount AS forfeited, forfeit_pct AS forfeitPct, fee_amount AS fee, completers, forfeiters,
+              bonus_each AS bonusEach, amount_each AS amountEach, settled_at AS settledAt
          FROM settlements WHERE challenge_id = ?`,
       [id],
     );

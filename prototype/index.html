@@ -406,11 +406,13 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
         <li>Same-day proof, no backdating</li>
         <li>No proof, no credit</li>
         <li>Stakes lock at the start</li>
-        <li>Forfeits go to completers</li>
+        <li>Miss 3 sessions in a week: you're out</li>
+        <li>75-day: miss 3 days and you're out</li>
         <li>Instructors are verified</li>
         <li>Anyone can flag fake proof</li>
+        <li>Finishers: stake back + 40% of forfeits</li>
+        <li>Forfeits: 60% to FitCircle (75-day: 100%)</li>
         <li>FitCircle keeps 35% of instructor fees</li>
-        <li>FitCircle keeps 30% of every other pool</li>
       </ul>
     </div>
   </section>
@@ -493,7 +495,8 @@ const fresh = () => ({
 let S = fresh();
 
 const $ = id => document.getElementById(id);
-const FEE_COACH = 35, FEE_POOL = 30; // FitCircle's cut: instructor-led vs everything else
+const FEE_COACH = 35; // FitCircle's cut of instructor fees from finishers
+const FORFEIT_GROUP = 60, FORFEIT_SOLO = 100, MAX_MISSED = 3; // FitCircle's cut of forfeits; misses before you're out
 const sgn = n => (n < 0 ? '−' : '+') + fmt(Math.abs(n));
 const fmt = n => Math.round(n).toLocaleString('en-KE');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -627,7 +630,7 @@ V.coachDetail = () => { const c = coach(); return `${top('Programme')}
 V.build = () => `${top('Build your 75')}
   <div><h3 class="big">75 days. Your rules.</h3><p class="sub" style="margin-top:6px">Every task, every day, with proof. Miss a day and the rules decide what happens.</p></div>
   <div class="seg-ctrl"><button data-act="mode" data-arg="soft" aria-pressed="${S.d75.mode==='soft'}">75 Soft</button><button data-act="mode" data-arg="hard" aria-pressed="${S.d75.mode==='hard'}">75 Hard</button></div>
-  <div class="note">${I.spark}${S.d75.mode === 'hard' ? 'Hard: miss one task and you restart at day 1.' : 'Soft: one rest day a week. Miss a task and you lose that day.'}</div>
+  <div class="note">${I.spark}${S.d75.mode === 'hard' ? 'Hard: more tasks every day. Miss 3 days and you are out.' : 'Soft: fewer tasks, same rule. Miss 3 days and you are out.'}</div>
   <div class="tasks">${TASKS.map(t => `<button class="task" data-act="task" data-arg="${t.id}" aria-pressed="${S.d75.tasks.includes(t.id)}"><span class="bx">${I.check}</span>${t.t}</button>`).join('')}</div>
   <div class="stick"><button class="btn" data-act="go" data-arg="stake" ${S.d75.tasks.length < 2 ? 'disabled' : ''}>${S.d75.tasks.length} daily tasks · Continue ${I.arrow}</button></div>`;
 
@@ -644,7 +647,9 @@ V.stake = () => {
   ${adult() ? `<div class="amounts six">${[200,500,1000,2000,5000,10000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
   <button class="switch" data-act="noStake" role="switch" aria-checked="${!staked()}" ${adult() ? '' : 'disabled'}>
     <span class="grow"><b style="display:block;font-size:14.5px">Run without stakes</b><span class="small muted">${adult() ? 'Same challenge, no money on the line.' : 'Staked challenges are for ages 18 and up.'}</span></span><span class="tg"></span></button>
-  ${staked() ? `<div class="outcomes"><div class="w"><b>Show up</b>Split the Jackpot with everyone who finishes, after the ${FEE_POOL}% FitCircle fee.</div><div class="l"><b>Skip</b>Your KES ${fmt(amt)} goes to the people who showed up.</div></div>` : ''}`}
+  ${staked() ? (S.seg === 'd75'
+    ? `<div class="outcomes"><div class="w"><b>Finish</b>Complete the 75 days and get your full KES ${fmt(amt)} back.</div><div class="l"><b>Miss 3 days</b>You're out automatically and FitCircle keeps your KES ${fmt(amt)}.</div></div>`
+    : `<div class="outcomes"><div class="w"><b>Show up</b>Get your full KES ${fmt(amt)} back plus a share of 40% of every forfeited stake.</div><div class="l"><b>Miss ${MAX_MISSED} in a week</b>You're out. ${FORFEIT_GROUP}% of your KES ${fmt(amt)} goes to FitCircle, ${100 - FORFEIT_GROUP}% to the finishers.</div></div>`) : ''}`}
   <p class="note">${I.lock}${staked() ? 'Money is locked when the challenge starts on Monday and cannot be withdrawn early.' : 'You still log proof and appear on the leaderboard.'}</p>
   <div class="stick"><button class="btn" data-act="${staked() ? 'go' : 'startFree'}" data-arg="pay">${staked() ? `${I.lock} Lock KES ${fmt(amt)}` : `Start the challenge ${I.arrow}`}</button></div>`;
 };
@@ -750,8 +755,8 @@ V.alerts = () => {
     ['bell', 'var(--seg)', 'Time to log', `${n} of ${members().length} have logged today. Don't be the one who hasn't.`, '06:30'],
     ['hand', '#C2338A', 'Achieng nudged you', '“Come on, we are at the gym already 💪”', '07:02'],
     ...(S.seg === 'coach' ? [['medal', '#2B55F5', c.name, `Voice note: ${c.today}`, '05:45']] : []),
-    ['flame', '#E08A00', `${S.seg === 'd75' ? 'Brian' : 'Kevin'} is at risk`, 'Behind this week. Send a nudge to keep the circle whole.', 'Yesterday'],
-    ...(staked() && S.seg !== 'coach' ? [['coin', '#F5A800', 'Jackpot update', `Pool is KES ${fmt(stakeAmt() * members().length)}. Every skipped week grows the share for those who show up.`, 'Mon']] : []),
+    ['flame', '#E08A00', `${S.seg === 'd75' ? 'Brian' : 'Kevin'} is at risk`, S.seg === 'd75' ? 'Missed 2 days. One more and they are out.' : 'Missed 2 sessions this week. One more and they are out. Send a nudge.', 'Yesterday'],
+    ...(staked() && S.seg !== 'coach' ? [['coin', '#F5A800', 'Jackpot update', `Pool is KES ${fmt(stakeAmt() * members().length)}. Anyone who misses ${MAX_MISSED} sessions in a week is out, and ${100 - FORFEIT_GROUP}% of their stake comes to the finishers.`, 'Mon']] : []),
     ['shield', '#0A9A6B', 'Flag reviewed', 'A flagged session in your circle was checked and approved.', 'Sun'],
   ];
   return `<div class="topbar"><h2 style="padding:0">Reminders</h2></div>
@@ -762,8 +767,10 @@ V.alerts = () => {
 const settlement = () => {
   const list = members();
   const done = S.seg === 'peer' ? ['Amani','Achieng','Njeri','Wambui'] : S.seg === 'd75' ? ['Amani','Achieng','Njeri'] : list.map(m => m.n);
-  const amt = stakeAmt(), pool = amt * list.length, fee = Math.round(pool * FEE_POOL / 100), each = (pool - fee) / done.length;
-  return {list, done, amt, pool, fee, each};
+  const amt = stakeAmt(), pool = amt * list.length, forfeited = amt * (list.length - done.length);
+  const pct = S.seg === 'd75' ? FORFEIT_SOLO : FORFEIT_GROUP;
+  const bonus = Math.floor(forfeited * (100 - pct) / 100 / done.length), each = amt + bonus, fee = forfeited - bonus * done.length;
+  return {list, done, amt, pool, forfeited, pct, bonus, fee, each};
 };
 
 V.end = () => {
@@ -777,14 +784,17 @@ V.end = () => {
     <div class="hero"><div class="k">No-stakes challenge</div><div class="v">You finished.</div><div class="meta"><span>Every session logged, all with proof.</span></div></div>
     <div class="card">${board()}</div><div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`;
   const s = settlement();
-  return `<div class="topbar"><h2 style="padding:0">Settling the Jackpot</h2></div>
+  return `<div class="topbar"><h2 style="padding:0">${S.seg === 'd75' ? 'Challenge settled' : 'Settling the Jackpot'}</h2></div>
   <div class="hero"><div class="k">Final pool</div><div class="v num"><small>KES</small><span data-count="${s.pool}">${fmt(s.pool)}</span></div>
     <div class="meta"><span class="num">${s.done.length} completed · ${s.list.length - s.done.length} forfeited</span></div></div>
   <div class="settle">${s.list.map((m, i) => { const ok = s.done.includes(m.n); return `
     <div class="it" style="animation-delay:${.15 + i * .12}s">${av(m.n, 32)}<b>${esc(m.me ? 'You' : m.n)}</b>
-      <span class="pill ${ok ? 'good' : 'bad'}">${ok ? 'Completed' : 'Missed target'}</span>
-      <span class="amt ${ok && s.each >= s.amt ? 'plus' : 'minus'}">${ok ? sgn(s.each - s.amt) : '−' + fmt(s.amt)}</span></div>`; }).join('')}</div>
-  <div class="card math num"><span class="muted">Pool</span><span>KES ${fmt(s.pool)}</span><span class="muted">FitCircle fee (${FEE_POOL}%)</span><span>− KES ${fmt(s.fee)}</span><span class="tot">Each completer receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
+      <span class="pill ${ok ? 'good' : 'bad'}">${ok ? 'Completed' : 'Out'}</span>
+      <span class="amt ${ok ? 'plus' : 'minus'}">${ok ? (s.bonus ? sgn(s.bonus) : 'Stake back') : '−' + fmt(s.amt)}</span></div>`; }).join('')}</div>
+  <div class="card math num"><span class="muted">Forfeited stakes</span><span>KES ${fmt(s.forfeited)}</span>
+    <span class="muted">FitCircle keeps (${s.pct}%)</span><span>KES ${fmt(s.fee)}</span>
+    ${s.pct < 100 ? `<span class="muted">Shared by ${s.done.length} finishers (${100 - s.pct}%)</span><span>KES ${fmt(s.bonus)} each</span>` : ''}
+    <span class="tot">Each finisher receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
   <div class="stick"><button class="btn" data-act="go" data-arg="win">${I.trophy} Collect KES ${fmt(s.each)}</button></div>`;
 };
 

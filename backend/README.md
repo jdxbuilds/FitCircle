@@ -30,7 +30,7 @@ The tests rebuild a throwaway `fitcircle_test` database, then cover:
 
 - **Sign-in:** SMS codes, wrong-code lockout and the under-16 refusal.
 - **Peer group:** the full journey, including stakes, locked joining and leaving, same-day proof, nudges, reminders and flags.
-- **Settlement:** 30% fee with whole-shilling payouts, sent once.
+- **Removal and settlement:** out after 3 missed sessions in a week; finishers get their stake plus 40% of forfeits, in whole shillings, sent once.
 - **75-day:** daily tasks.
 - **Instructor:** verification, the 35% fee, daily plans, flag review and the dashboard.
 - **Account review:** triggered after 3 open flags.
@@ -123,7 +123,7 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 
 `node dist/jobs.js <job>`. On AWS these run on a schedule, at Nairobi times:
 
-- `daily` (00:05): start challenges whose start date has come, settle ended challenges, send due payouts.
+- `daily` (00:05): start challenges whose start date has come, remove members who missed too many sessions, settle ended challenges, send due payouts.
 - `morning` (06:30): reminder to everyone in a running challenge.
 - `evening` (19:00): reminder to anyone who hasn't logged yet.
 

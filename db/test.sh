@@ -36,8 +36,9 @@ expect_error "instructor cannot be verified without all 3 documents" \
   "UPDATE instructor_profiles SET verification = 'verified' WHERE user_id = 9" \
   "must all be approved"
 expect_value "fee snapshot: instructor-led keeps 35%" "SELECT fee_pct FROM challenges WHERE id = 2" "35.00"
-expect_value "fee snapshot: peer pool keeps 30%"      "SELECT fee_pct FROM challenges WHERE id = 1" "30.00"
-expect_value "fee snapshot: 75-day pool keeps 30%"    "SELECT fee_pct FROM challenges WHERE id = 3" "30.00"
+expect_value "forfeits: peer group 60% to FitCircle"  "SELECT CONCAT(fee_pct, '|', forfeit_pct) FROM challenges WHERE id = 1" "0.00|60.00"
+expect_value "forfeits: instructor 60% to FitCircle"  "SELECT forfeit_pct FROM challenges WHERE id = 2" "60.00"
+expect_value "forfeits: 75-day 100% to FitCircle"     "SELECT CONCAT(fee_pct, '|', forfeit_pct) FROM challenges WHERE id = 3" "0.00|100.00"
 
 echo "Joining and stakes"
 run "INSERT INTO challenges (id, type, title, created_by, start_date, duration_days, sessions_per_week, is_staked, stake_amount, invite_code) VALUES (20,'peer','Weekend Warriors',1,CURDATE() + INTERVAL 3 DAY,14,2,TRUE,200,'FC-WW')" >/dev/null
@@ -99,11 +100,41 @@ echo "Nudges"
 run "INSERT INTO nudges (challenge_id, from_user_id, to_user_id) VALUES (1, 2, 6)" >/dev/null
 expect_error "one nudge per person per day" "INSERT INTO nudges (challenge_id, from_user_id, to_user_id) VALUES (1, 2, 6)" "Duplicate"
 
+echo "Automatic removal"
+run "SET @fitcircle_backfill = 1;
+     INSERT INTO challenges (id, type, title, created_by, status, start_date, duration_days, sessions_per_week, invite_code)
+       VALUES (40,'peer','Three a week',1,'enrolling',CURDATE() - INTERVAL 10 DAY,14,3,'FC-R3'),
+              (41,'peer','Two a week',1,'enrolling',CURDATE() - INTERVAL 8 DAY,14,2,'FC-R2');
+     INSERT INTO challenge_members (challenge_id, user_id) VALUES (40,1),(40,2),(40,3),(41,1),(41,4);
+     CALL start_challenge(40); CALL start_challenge(41);
+     INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type) VALUES
+       (40,1,CURDATE() - INTERVAL 8 DAY,TIMESTAMP(CURDATE() - INTERVAL 8 DAY,'07:00'),'x.jpg','photo'),
+       (40,2,CURDATE() - INTERVAL 2 DAY,TIMESTAMP(CURDATE() - INTERVAL 2 DAY,'07:00'),'x.jpg','photo'),
+       (40,3,CURDATE() - INTERVAL 10 DAY,TIMESTAMP(CURDATE() - INTERVAL 10 DAY,'07:00'),'x.jpg','photo'),
+       (40,3,CURDATE() - INTERVAL 8 DAY,TIMESTAMP(CURDATE() - INTERVAL 8 DAY,'07:00'),'x.jpg','photo'),
+       (40,3,CURDATE() - INTERVAL 6 DAY,TIMESTAMP(CURDATE() - INTERVAL 6 DAY,'07:00'),'x.jpg','photo'),
+       (41,1,CURDATE() - INTERVAL 7 DAY,TIMESTAMP(CURDATE() - INTERVAL 7 DAY,'07:00'),'x.jpg','photo');
+     SET @fitcircle_backfill = 0;
+     CALL apply_removals();" >/dev/null
+expect_value "missed 3 in a week: removed; missed 2: stays" \
+  "SELECT GROUP_CONCAT(CONCAT(user_id, ':', status) ORDER BY user_id) FROM challenge_members WHERE challenge_id = 40" "1:active,2:forfeited,3:active"
+expect_value "removal reason is recorded" "SELECT forfeit_reason FROM challenge_members WHERE challenge_id = 40 AND user_id = 2" "Missed 3 sessions in one week"
+expect_value "2-a-week group: missing the whole week removes" \
+  "SELECT GROUP_CONCAT(CONCAT(user_id, ':', status) ORDER BY user_id) FROM challenge_members WHERE challenge_id = 41" "1:active,4:forfeited"
+expect_value "removed member is told" "SELECT COUNT(*) FROM notifications WHERE user_id = 2 AND title = 'You are out of this challenge' AND JSON_EXTRACT(data, '$.challengeId') = 40" "1"
+expect_error "removed member cannot log again" \
+  "INSERT INTO session_logs (challenge_id, user_id, media_url, media_type) VALUES (40, 2, 'x.jpg', 'photo')" "Only active members"
+expect_value "75-day: 3+ missed days removes, full days keep you in" \
+  "SELECT GROUP_CONCAT(CONCAT(user_id, ':', status) ORDER BY user_id) FROM challenge_members WHERE challenge_id = 3" "1:active,2:active,3:active,4:forfeited"
+expect_value "75-day removal reason" "SELECT forfeit_reason FROM challenge_members WHERE challenge_id = 3 AND user_id = 4" "Missed 3 days"
+expect_value "running it again changes nothing" "CALL apply_removals(); SELECT COUNT(*) FROM challenge_members WHERE removed_at IS NOT NULL" "$(run "SELECT COUNT(*) FROM challenge_members WHERE removed_at IS NOT NULL")"
+
 echo "Settlement"
 expect_error "cannot settle before the end" "CALL settle_challenge(3)" "not ended"
 run "CALL settle_challenge(1)" >/dev/null
 expect_value "4 completed, 2 forfeited" "SELECT CONCAT(completers, '/', forfeiters) FROM settlements WHERE challenge_id = 1" "4/2"
-expect_value "pool 3,000, fee 900 (30%), 525 each" "SELECT CONCAT(gross_amount, '|', fee_amount, '|', amount_each) FROM settlements WHERE challenge_id = 1" "3000.00|900.00|525.00"
+expect_value "1,000 forfeited: FitCircle 600 (60%), finishers share 400" "SELECT CONCAT(forfeited_amount, '|', fee_amount, '|', bonus_each) FROM settlements WHERE challenge_id = 1" "1000.00|600.00|100.00"
+expect_value "each finisher gets stake 500 + 100 = 600" "SELECT GROUP_CONCAT(amount ORDER BY user_id) FROM payouts WHERE challenge_id = 1 AND kind = 'jackpot'" "600.00,600.00,600.00,600.00"
 expect_value "Brian and Kevin forfeited" "SELECT GROUP_CONCAT(user_id ORDER BY user_id) FROM challenge_members WHERE challenge_id = 1 AND status = 'forfeited'" "4,6"
 expect_value "payouts + fee = pool" "SELECT SUM(p.amount) + s.fee_amount = s.gross_amount FROM payouts p JOIN settlements s ON s.challenge_id = p.challenge_id WHERE p.challenge_id = 1 GROUP BY s.challenge_id" "1"
 expect_error "a challenge settles only once" "CALL settle_challenge(1)" "Only an active challenge"
@@ -120,7 +151,23 @@ run "SET @fitcircle_backfill = 1;
        SELECT 30, u, CURDATE() - INTERVAL d DAY, TIMESTAMP(CURDATE() - INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
        FROM (SELECT 1 u UNION ALL SELECT 2 UNION ALL SELECT 3) a, (SELECT 3 d UNION ALL SELECT 5) b;
      CALL settle_challenge(30);" >/dev/null
-expect_value "3-way split of 280 pays whole shillings, remainder to fee" "SELECT CONCAT(amount_each, '|', fee_amount) FROM settlements WHERE challenge_id = 30" "93.00|121.00"
+expect_value "40 split 3 ways pays 13 each in whole shillings, leftover to FitCircle" "SELECT CONCAT(amount_each, '|', fee_amount) FROM settlements WHERE challenge_id = 30" "113.00|61.00"
+
+echo "Instructor split"
+run "SET @fitcircle_backfill = 1;
+     INSERT INTO challenges (id, type, title, created_by, instructor_id, status, start_date, duration_days, sessions_per_week, entry_fee, invite_code)
+       VALUES (50,'instructor','One week bootcamp',7,7,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,1000,'FC-IB');
+     INSERT INTO challenge_members (challenge_id, user_id) VALUES (50,1),(50,2);
+     INSERT INTO payments (user_id, challenge_id, kind, provider, provider_ref, amount, status) VALUES
+       (1,50,'entry_fee','mpesa','IB1',1000,'succeeded'),(2,50,'entry_fee','mpesa','IB2',1000,'succeeded');
+     CALL start_challenge(50);
+     INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type)
+       SELECT 50, 1, CURDATE() - INTERVAL d DAY, TIMESTAMP(CURDATE() - INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
+       FROM (SELECT 6 d UNION ALL SELECT 3) x;
+     CALL settle_challenge(50);" >/dev/null
+expect_value "instructor gets 65% of finisher fee + 40% of forfeited fee (650 + 400)" \
+  "SELECT amount FROM payouts WHERE challenge_id = 50 AND kind = 'instructor_earning'" "1050.00"
+expect_value "FitCircle keeps 35% + 60% (350 + 600)" "SELECT fee_amount FROM settlements WHERE challenge_id = 50" "950.00"
 
 echo
 echo "$pass passed, $fail failed"

@@ -13,9 +13,9 @@ Every push runs the database rule checks, the API tests and the AWS template bui
 
 ## The three formats
 
-- **Peer Groups:** weekly target, shared Jackpot, forfeits go to completers, FitCircle keeps 30%
-- **Instructor Challenges:** verified coaches, paid 1–12 week programmes, instructor keeps 65%, FitCircle 35%
-- **Custom 75-Day:** build your own 75 Hard / 75 Soft with daily tasks, FitCircle keeps 30%
+- **Peer Groups:** weekly target, shared Jackpot. Miss 3 sessions in a week (or every session, for 2-a-week groups) and you're out: FitCircle keeps 60% of your stake, finishers share 40% on top of getting their own stake back
+- **Instructor Challenges:** verified coaches, paid 1–12 week programmes. Finishers' fees: instructor 65%, FitCircle 35%. Removed members' fees: FitCircle 60%, instructor 40%
+- **Custom 75-Day:** build your own 75 Hard / 75 Soft with daily tasks. Miss 3 days and you're out: FitCircle keeps 100% of your stake; finishers get their stake back
 
 ## Prototype
 

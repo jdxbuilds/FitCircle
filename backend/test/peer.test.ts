@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { exec, one, rows } from '../src/db.js';
-import { sendPayouts, settleEnded, startDue, remind } from '../src/jobs.js';
+import { removeMissed, sendPayouts, settleEnded, startDue, remind } from '../src/jobs.js';
 import { call, logToday, makeApp, pay, signUp, todayEAT, type TestApp } from './helpers.js';
 
 let t: TestApp;
@@ -93,7 +93,7 @@ describe('peer group: create, stake, show up, settle', () => {
 });
 
 describe('settlement at the end of a challenge', () => {
-  it('pays completers from the pool after the 30% fee, in whole shillings', async () => {
+  it('pays finishers their stake plus 40% of forfeits, in whole shillings', async () => {
     const people = await Promise.all(['Wambui', 'Otieno', 'Akinyi', 'Mutua'].map((n) => signUp(t, n)));
     const created = await call(t, 'POST', '/challenges', people[0].token, {
       type: 'peer', title: 'Week Warriors', startDate: todayEAT(), weeks: 1, sessionsPerWeek: 2, stake: 100,
@@ -120,9 +120,9 @@ describe('settlement at the end of a challenge', () => {
 
     expect(await settleEnded(t.ctx.db, () => {})).toBeGreaterThanOrEqual(1);
     const view = await call(t, 'GET', `/challenges/${id}`, people[0].token);
-    // 400 pool, 30% fee = 120, 280 / 3 = 93 each, the leftover shilling goes to the fee
+    // Mutua forfeits 100: FitCircle keeps 60, finishers share 40 → 13 each (whole shillings), leftover 1 to FitCircle
     expect(view.body.status).toBe('settled');
-    expect(view.body.settlement).toMatchObject({ gross: 400, fee: 121, completers: 3, forfeiters: 1, amountEach: 93 });
+    expect(view.body.settlement).toMatchObject({ gross: 400, forfeited: 100, forfeitPct: 60, fee: 61, completers: 3, forfeiters: 1, bonusEach: 13, amountEach: 113 });
 
     // Payouts go out the day after settlement, exactly once
     expect(await one(t.ctx.db, 'SELECT MIN(scheduled_for) = CURDATE() + INTERVAL 1 DAY AS tomorrow FROM payouts WHERE challenge_id = ?', [id])).toMatchObject({ tomorrow: 1 });
@@ -131,9 +131,37 @@ describe('settlement at the end of a challenge', () => {
     expect(await sendPayouts(t.ctx.db, t.ctx.payments, () => {})).toBe(3);
     const paid = await rows<{ status: string; amount: number }>(t.ctx.db, 'SELECT status, amount FROM payouts WHERE challenge_id = ?', [id]);
     expect(paid).toHaveLength(3);
-    expect(paid.every((p) => p.status === 'sent' && p.amount === 93)).toBe(true);
+    expect(paid.every((p) => p.status === 'sent' && p.amount === 113)).toBe(true);
     await sendPayouts(t.ctx.db, t.ctx.payments, () => {});
     expect((await one<{ n: number }>(t.ctx.db, 'SELECT COUNT(*) AS n FROM payouts WHERE challenge_id = ?', [id]))!.n).toBe(3);
+  });
+});
+
+describe('automatic removal', () => {
+  it('removes a member who misses a whole week and shows the reason', async () => {
+    const [a, b] = await Promise.all(['Halima', 'Juma'].map((n) => signUp(t, n)));
+    const created = await call(t, 'POST', '/challenges', a.token, { type: 'peer', title: 'Removal test', startDate: todayEAT(), weeks: 2, sessionsPerWeek: 3, stake: 200 });
+    const id = created.body.id as number;
+    await call(t, 'POST', '/challenges/join', b.token, { inviteCode: created.body.inviteCode });
+    for (const p of [a, b]) await pay(t, p.token, id);
+    await call(t, 'POST', `/challenges/${id}/start`, a.token);
+    await exec(t.ctx.db, 'UPDATE challenges SET start_date = CURDATE() - INTERVAL 8 DAY WHERE id = ?', [id]);
+    const conn = await t.ctx.db.getConnection();
+    await conn.query('SET @fitcircle_backfill = 1');
+    for (const d of [8, 6, 4]) // Halima logs 3 times in week 1; Juma logs nothing
+      await conn.query(
+        `INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type)
+         VALUES (?, ?, CURDATE() - INTERVAL ? DAY, TIMESTAMP(CURDATE() - INTERVAL ? DAY, '07:00:00'), 'proofs/x.jpg', 'photo')`,
+        [id, a.id, d, d],
+      );
+    conn.release();
+
+    expect(await removeMissed(t.ctx.db, () => {})).toBeGreaterThanOrEqual(1);
+    const members = await call(t, 'GET', `/challenges/${id}/members`, a.token);
+    expect(members.body.find((m: { userId: number }) => m.userId === b.id)).toMatchObject({ status: 'forfeited' });
+    expect((await call(t, 'GET', `/challenges/${id}/leaderboard`, a.token)).body.map((r: { userId: number }) => r.userId)).toEqual([a.id]);
+    expect((await call(t, 'GET', '/notifications', b.token)).body[0]).toMatchObject({ title: 'You are out of this challenge' });
+    expect((await logToday(t, b.token, id)).status).toBe(403);
   });
 });
 

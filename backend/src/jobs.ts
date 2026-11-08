@@ -19,6 +19,21 @@ export async function startDue(db: Db, log: Log = console.log) {
   return due.length;
 }
 
+/** Remove members who missed 3 sessions in a week (peer, instructor) or 3 days (75-day). They are notified. */
+export async function removeMissed(db: Db, log: Log = console.log) {
+  // @removal_run is set per connection, so the count must use the same connection as the call
+  const conn = await db.getConnection();
+  let n = 0;
+  try {
+    await conn.query('CALL apply_removals()');
+    n = (await rows<{ n: number }>(conn, 'SELECT COUNT(*) AS n FROM challenge_members WHERE removed_at = @removal_run'))[0]?.n ?? 0;
+  } finally {
+    conn.release();
+  }
+  if (n) log(`removed ${n} member(s) for missed sessions`);
+  return n;
+}
+
 /** Settle every active challenge that ended before today. Challenges with open flags wait for review. */
 export async function settleEnded(db: Db, log: Log = console.log) {
   const ended = await rows<{ id: number; open_flags: number }>(
@@ -97,8 +112,8 @@ async function main(job: string | undefined) {
   const db = createDb(config);
   try {
     switch (job) {
-      case 'daily': // just after midnight Nairobi time
-        console.log({ started: await startDue(db), settled: await settleEnded(db), payouts: await sendPayouts(db, createPayments(config)) });
+      case 'daily': // just after midnight Nairobi time: start, remove, settle, pay
+        console.log({ started: await startDue(db), removed: await removeMissed(db), settled: await settleEnded(db), payouts: await sendPayouts(db, createPayments(config)) });
         break;
       case 'morning':
       case 'evening':

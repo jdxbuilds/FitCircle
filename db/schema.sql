@@ -15,8 +15,10 @@
 --   * Stakes lock at the start; nobody joins or leaves after start
 --   * Instructors must be verified before they can host
 --   * Participants can flag proof; 3 unresolved flags = account review
---   * Fees: FitCircle keeps 35% of instructor-led fees, 30% of every other pool
---   * Forfeited stakes are redistributed to completers at settlement
+--   * Miss 3 sessions in a week (peer, instructor) or 3 days of a 75-day challenge: out automatically
+--   * Finishers get their full stake back plus 40% of forfeited stakes (peer groups)
+--   * Forfeits: FitCircle keeps 60% in peer and instructor challenges, 100% in 75 Hard/Soft
+--   * Instructor-led fees from finishers: instructor 65%, FitCircle 35%
 -- =====================================================================
 
 CREATE DATABASE IF NOT EXISTS fitcircle
@@ -34,8 +36,11 @@ CREATE TABLE platform_settings (
 ) ENGINE=InnoDB;
 
 INSERT INTO platform_settings (setting_key, setting_value, description) VALUES
-  ('fee_pct_instructor',  '35', 'FitCircle share of instructor challenge entry fees'),
-  ('fee_pct_pool',        '30', 'FitCircle share of peer group and custom 75-day Jackpot pools'),
+  ('fee_pct_instructor',  '35', 'FitCircle share of entry fees from members who finish an instructor challenge'),
+  ('forfeit_pct_group',   '60', 'FitCircle share of forfeited money in peer groups and instructor challenges; the rest goes to finishers or the instructor'),
+  ('forfeit_pct_solo',   '100', 'FitCircle share of forfeited stakes in 75 Hard and 75 Soft'),
+  ('max_missed_per_week', '3',  'Missed sessions in one week that remove a member (peer, instructor); capped at the weekly target'),
+  ('max_missed_days_75',  '3',  'Missed days that remove a member from a 75-day challenge'),
   ('min_age_join',        '16', 'Minimum age to create an account'),
   ('min_age_stake',       '18', 'Minimum age to join a staked challenge'),
   ('open_flags_review',   '3',  'Open flags on a user that trigger an account review'),
@@ -147,7 +152,8 @@ CREATE TABLE challenges (
   stake_amount       DECIMAL(12,2),                         -- peer / custom75, per person
   entry_fee          DECIMAL(12,2),                         -- instructor, per person
   currency           CHAR(3) NOT NULL DEFAULT 'KES',
-  fee_pct            DECIMAL(5,2) NOT NULL,                 -- snapshot of FitCircle's cut when created
+  fee_pct            DECIMAL(5,2) NOT NULL,                 -- FitCircle's cut of finishers' money (instructor 35, pools 0)
+  forfeit_pct        DECIMAL(5,2) NOT NULL,                 -- FitCircle's cut of forfeited money (60, or 100 for 75-day)
   capacity           INT UNSIGNED,
   invite_code        VARCHAR(12) NOT NULL,
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +166,7 @@ CREATE TABLE challenges (
   CONSTRAINT fk_ch_org        FOREIGN KEY (organization_id) REFERENCES organizations(id),
   CONSTRAINT ck_ch_sessions   CHECK (sessions_per_week BETWEEN 2 AND 7),
   CONSTRAINT ck_ch_fee_pct    CHECK (fee_pct BETWEEN 0 AND 100),
+  CONSTRAINT ck_ch_forfeit_pct CHECK (forfeit_pct BETWEEN 0 AND 100),
   CONSTRAINT ck_ch_duration   CHECK (
        (type = 'custom75' AND duration_days = 75)
     OR (type <> 'custom75' AND duration_days BETWEEN 7 AND 84 AND duration_days % 7 = 0)),
@@ -188,6 +195,8 @@ CREATE TABLE challenge_members (
   status         ENUM('active','completed','forfeited','withdrawn') NOT NULL DEFAULT 'active',
   amount_paid    DECIMAL(12,2),                     -- stake or entry fee, set when payment succeeds
   paid_at        DATETIME,
+  removed_at     DATETIME,                          -- set when removed automatically for missed sessions
+  forfeit_reason VARCHAR(120),
   joined_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (challenge_id, user_id),
   KEY ix_member_user (user_id, status),
@@ -329,11 +338,14 @@ CREATE TABLE daily_plans (
 CREATE TABLE settlements (
   challenge_id     BIGINT UNSIGNED PRIMARY KEY,     -- a challenge settles exactly once
   gross_amount     DECIMAL(12,2) NOT NULL,          -- pool or total entry fees
-  fee_pct          DECIMAL(5,2)  NOT NULL,
-  fee_amount       DECIMAL(12,2) NOT NULL,          -- FitCircle revenue (includes rounding cents)
+  fee_pct          DECIMAL(5,2)  NOT NULL,          -- FitCircle's cut of finishers' money
+  forfeit_pct      DECIMAL(5,2)  NOT NULL,          -- FitCircle's cut of forfeited money
+  forfeited_amount DECIMAL(12,2) NOT NULL,          -- stakes or fees of everyone who did not finish
+  fee_amount       DECIMAL(12,2) NOT NULL,          -- FitCircle revenue (includes leftover shillings)
   completers       INT UNSIGNED  NOT NULL,
   forfeiters       INT UNSIGNED  NOT NULL,
-  amount_each      DECIMAL(12,2),                   -- per completer (pools) or NULL
+  bonus_each       DECIMAL(12,2),                   -- each finisher's share of forfeits (pools)
+  amount_each      DECIMAL(12,2),                   -- each finisher receives: stake + bonus (pools)
   settled_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_set_ch FOREIGN KEY (challenge_id) REFERENCES challenges(id)
 ) ENGINE=InnoDB;
@@ -387,8 +399,12 @@ END//
 CREATE TRIGGER trg_challenges_ins BEFORE INSERT ON challenges FOR EACH ROW
 BEGIN
   IF NEW.fee_pct IS NULL THEN
-    SET NEW.fee_pct = (SELECT CAST(setting_value AS DECIMAL(5,2)) FROM platform_settings
-                       WHERE setting_key = IF(NEW.type = 'instructor', 'fee_pct_instructor', 'fee_pct_pool'));
+    SET NEW.fee_pct = IF(NEW.type = 'instructor',
+      (SELECT CAST(setting_value AS DECIMAL(5,2)) FROM platform_settings WHERE setting_key = 'fee_pct_instructor'), 0);
+  END IF;
+  IF NEW.forfeit_pct IS NULL THEN
+    SET NEW.forfeit_pct = (SELECT CAST(setting_value AS DECIMAL(5,2)) FROM platform_settings
+                           WHERE setting_key = IF(NEW.type = 'custom75', 'forfeit_pct_solo', 'forfeit_pct_group'));
   END IF;
   IF NEW.type = 'instructor' AND NOT EXISTS (
        SELECT 1 FROM instructor_profiles WHERE user_id = NEW.instructor_id AND verification = 'verified') THEN
@@ -588,10 +604,10 @@ SELECT m.challenge_id, m.user_id, u.first_name,
 
 -- Live Jackpot per staked challenge
 CREATE VIEW v_jackpots AS
-SELECT c.id AS challenge_id, c.title, c.type, c.fee_pct,
+SELECT c.id AS challenge_id, c.title, c.type, c.forfeit_pct,
        COUNT(m.user_id) AS stakers,
        COALESCE(SUM(m.amount_paid), 0) AS pool,
-       ROUND(COALESCE(SUM(m.amount_paid), 0) * c.fee_pct / 100, 2) AS projected_fee
+       COALESCE(SUM(CASE WHEN m.status = 'forfeited' THEN m.amount_paid END), 0) AS forfeited
   FROM challenges c
   LEFT JOIN challenge_members m ON m.challenge_id = c.id AND m.amount_paid IS NOT NULL AND m.status <> 'withdrawn'
  WHERE c.is_staked
@@ -602,7 +618,7 @@ CREATE VIEW v_instructor_dashboard AS
 SELECT c.instructor_id, c.id AS challenge_id, c.title, c.status, c.start_date, c.end_date,
        COUNT(DISTINCT m.user_id) AS participants,
        COALESCE(SUM(m.amount_paid), 0) AS fees_collected,
-       ROUND(COALESCE(SUM(m.amount_paid), 0) * (100 - c.fee_pct) / 100, 2) AS instructor_share,
+       ROUND(COALESCE(SUM(m.amount_paid * (100 - IF(m.status = 'forfeited', c.forfeit_pct, c.fee_pct)) / 100), 0), 2) AS instructor_share,
        (SELECT COUNT(*) FROM session_logs l WHERE l.challenge_id = c.id AND l.log_date = CURDATE()) AS logged_today,
        (SELECT COUNT(*) FROM v_leaderboard lb WHERE lb.challenge_id = c.id AND lb.at_risk) AS at_risk,
        (SELECT COUNT(*) FROM proof_flags f JOIN session_logs l ON l.id = f.session_log_id
@@ -642,27 +658,97 @@ BEGIN
   COMMIT;
 END//
 
+-- Remove members who missed too much, in every running challenge. Run daily (the API's jobs do).
+--   Peer and instructor: a finished week with 3 or more missed sessions (missed = weekly target - sessions
+--     logged; groups below 3 a week are removed when they miss every session that week).
+--   Custom 75: 3 or more days before today without every task done.
+--   Pending flags count as logged; a session counts as missed only once a flag is upheld.
+CREATE PROCEDURE apply_removals()
+BEGIN
+  DECLARE v_week INT; DECLARE v_days INT;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+  SELECT CAST(setting_value AS UNSIGNED) INTO v_week FROM platform_settings WHERE setting_key = 'max_missed_per_week';
+  SELECT CAST(setting_value AS UNSIGNED) INTO v_days FROM platform_settings WHERE setting_key = 'max_missed_days_75';
+  SET @removal_run = NOW();
+
+  START TRANSACTION;
+  -- Weeks in which each member logged enough to stay in
+  DROP TEMPORARY TABLE IF EXISTS tmp_week_counts;
+  CREATE TEMPORARY TABLE tmp_week_counts AS
+    SELECT l.challenge_id, l.user_id, FLOOR(DATEDIFF(l.log_date, c.start_date) / 7) + 1 AS wk, COUNT(*) AS n
+      FROM session_logs l JOIN challenges c ON c.id = l.challenge_id
+     WHERE c.status = 'active' AND c.type IN ('peer', 'instructor') AND l.status IN ('counted', 'flagged')
+     GROUP BY l.challenge_id, l.user_id, wk;
+  DROP TEMPORARY TABLE IF EXISTS tmp_ok_weeks;
+  CREATE TEMPORARY TABLE tmp_ok_weeks AS
+    SELECT t.challenge_id, t.user_id, COUNT(*) AS ok
+      FROM tmp_week_counts t JOIN challenges c ON c.id = t.challenge_id
+     WHERE t.n > c.sessions_per_week - LEAST(v_week, c.sessions_per_week)
+       AND t.wk <= LEAST(c.duration_days DIV 7, FLOOR(DATEDIFF(CURDATE(), c.start_date) / 7))
+     GROUP BY t.challenge_id, t.user_id;
+  UPDATE challenge_members m
+    JOIN challenges c ON c.id = m.challenge_id
+    LEFT JOIN tmp_ok_weeks o ON o.challenge_id = m.challenge_id AND o.user_id = m.user_id
+     SET m.status = 'forfeited', m.removed_at = @removal_run, m.forfeit_reason = 'Missed 3 sessions in one week'
+   WHERE c.status = 'active' AND c.type IN ('peer', 'instructor') AND m.status = 'active'
+     AND COALESCE(o.ok, 0) < LEAST(c.duration_days DIV 7, FLOOR(DATEDIFF(CURDATE(), c.start_date) / 7));
+
+  -- Full days (every task done) per 75-day member, before today
+  DROP TEMPORARY TABLE IF EXISTS tmp_full_days;
+  CREATE TEMPORARY TABLE tmp_full_days AS
+    SELECT l.challenge_id, l.user_id, COUNT(*) AS full_days
+      FROM session_logs l JOIN challenges c ON c.id = l.challenge_id
+     WHERE c.status = 'active' AND c.type = 'custom75' AND l.status IN ('counted', 'flagged') AND l.log_date < CURDATE()
+       AND (SELECT COUNT(DISTINCT tc.task_id) FROM task_checkins tc WHERE tc.session_log_id = l.id)
+         = (SELECT COUNT(*) FROM challenge_tasks ct WHERE ct.challenge_id = c.id)
+     GROUP BY l.challenge_id, l.user_id;
+  UPDATE challenge_members m
+    JOIN challenges c ON c.id = m.challenge_id
+    LEFT JOIN tmp_full_days f ON f.challenge_id = m.challenge_id AND f.user_id = m.user_id
+     SET m.status = 'forfeited', m.removed_at = @removal_run, m.forfeit_reason = 'Missed 3 days'
+   WHERE c.status = 'active' AND c.type = 'custom75' AND m.status = 'active'
+     AND LEAST(c.duration_days, DATEDIFF(CURDATE(), c.start_date)) - COALESCE(f.full_days, 0) >= v_days;
+
+  INSERT INTO notifications (user_id, type, title, body, data)
+  SELECT m.user_id, 'challenge_settled', 'You are out of this challenge',
+         CONCAT(m.forfeit_reason, '. ', IF(c.is_staked OR c.type = 'instructor',
+           'Your stake has been forfeited.', 'You can join the next one any time.')),
+         JSON_OBJECT('challengeId', c.id)
+    FROM challenge_members m JOIN challenges c ON c.id = m.challenge_id
+   WHERE m.removed_at = @removal_run;
+
+  DROP TEMPORARY TABLE IF EXISTS tmp_week_counts;
+  DROP TEMPORARY TABLE IF EXISTS tmp_ok_weeks;
+  DROP TEMPORARY TABLE IF EXISTS tmp_full_days;
+  COMMIT;
+END//
+
 -- Settle a finished challenge.
 --   Completion: peer / instructor = hit the weekly target every week.
---               custom75 = every task done on 75 days (hard) or 65 days (soft: 1 rest day a week).
---   Pools (peer, custom75): FitCircle takes fee_pct of the whole pool, completers split the rest.
---     If nobody completes, everyone is refunded what is left after the fee.
---   Instructor: instructor receives (100 - fee_pct)% of entry fees.
---   M-Pesa pays whole shillings, so payouts round down to the shilling and the
---   leftover goes to the fee: payouts + fee always equal the gross amount.
+--               custom75 = every task done on at least 73 of the 75 days (out at 3 missed days).
+--   Peer groups: finishers get their stake back plus an equal share of 40% of forfeited stakes;
+--     FitCircle keeps 60% (100% if nobody finishes).
+--   Custom 75: finishers get their stake back; FitCircle keeps 100% of forfeited stakes.
+--   Instructor: instructor receives 65% of finishers' fees and 40% of forfeited fees.
+--   M-Pesa pays whole shillings, so shares round down and the leftover goes to FitCircle:
+--   payouts + fee always equal the gross amount.
 CREATE PROCEDURE settle_challenge(IN p_challenge_id BIGINT UNSIGNED)
 BEGIN
-  DECLARE v_type VARCHAR(20); DECLARE v_status VARCHAR(20); DECLARE v_mode VARCHAR(10);
+  DECLARE v_type VARCHAR(20); DECLARE v_status VARCHAR(20);
   DECLARE v_start DATE; DECLARE v_end DATE; DECLARE v_days INT; DECLARE v_spw INT;
-  DECLARE v_staked BOOLEAN; DECLARE v_fee_pct DECIMAL(5,2); DECLARE v_instructor BIGINT UNSIGNED;
-  DECLARE v_tasks INT; DECLARE v_needed INT;
-  DECLARE v_gross DECIMAL(12,2) DEFAULT 0; DECLARE v_fee DECIMAL(12,2) DEFAULT 0; DECLARE v_each DECIMAL(12,2);
+  DECLARE v_staked BOOLEAN; DECLARE v_fee_pct DECIMAL(5,2); DECLARE v_forfeit_pct DECIMAL(5,2);
+  DECLARE v_instructor BIGINT UNSIGNED; DECLARE v_stake DECIMAL(12,2);
+  DECLARE v_tasks INT; DECLARE v_max_missed INT;
+  DECLARE v_gross DECIMAL(12,2) DEFAULT 0; DECLARE v_forfeited DECIMAL(12,2) DEFAULT 0;
+  DECLARE v_finished DECIMAL(12,2) DEFAULT 0; DECLARE v_fee DECIMAL(12,2) DEFAULT 0;
+  DECLARE v_bonus DECIMAL(12,2); DECLARE v_each DECIMAL(12,2); DECLARE v_share DECIMAL(12,2);
   DECLARE v_done INT DEFAULT 0; DECLARE v_total INT DEFAULT 0;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
 
   START TRANSACTION;
-  SELECT type, status, mode_75, start_date, end_date, duration_days, sessions_per_week, is_staked, fee_pct, instructor_id
-    INTO v_type, v_status, v_mode, v_start, v_end, v_days, v_spw, v_staked, v_fee_pct, v_instructor
+  SELECT type, status, start_date, end_date, duration_days, sessions_per_week, is_staked, fee_pct, forfeit_pct,
+         instructor_id, stake_amount
+    INTO v_type, v_status, v_start, v_end, v_days, v_spw, v_staked, v_fee_pct, v_forfeit_pct, v_instructor, v_stake
     FROM challenges WHERE id = p_challenge_id FOR UPDATE;
 
   IF v_status IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Challenge not found'; END IF;
@@ -677,13 +763,13 @@ BEGIN
   DROP TEMPORARY TABLE IF EXISTS tmp_completers;
   IF v_type = 'custom75' THEN
     SELECT COUNT(*) INTO v_tasks FROM challenge_tasks WHERE challenge_id = p_challenge_id;
-    SET v_needed = IF(v_mode = 'hard', 75, 65);
+    SELECT CAST(setting_value AS UNSIGNED) INTO v_max_missed FROM platform_settings WHERE setting_key = 'max_missed_days_75';
     CREATE TEMPORARY TABLE tmp_completers AS
       SELECT user_id FROM (
         SELECT l.user_id, l.id FROM session_logs l JOIN task_checkins t ON t.session_log_id = l.id
          WHERE l.challenge_id = p_challenge_id AND l.status = 'counted'
          GROUP BY l.user_id, l.id HAVING COUNT(DISTINCT t.task_id) = v_tasks
-      ) full_days GROUP BY user_id HAVING COUNT(*) >= v_needed;
+      ) full_days GROUP BY user_id HAVING COUNT(*) > v_days - v_max_missed;
   ELSE
     CREATE TEMPORARY TABLE tmp_completers AS
       SELECT user_id FROM v_member_weeks
@@ -691,47 +777,51 @@ BEGIN
        GROUP BY user_id HAVING COUNT(*) = v_days DIV 7;
   END IF;
 
-  UPDATE challenge_members m
-     SET m.status = IF(EXISTS (SELECT 1 FROM tmp_completers t WHERE t.user_id = m.user_id), 'completed', 'forfeited')
+  UPDATE challenge_members m LEFT JOIN tmp_completers t ON t.user_id = m.user_id
+     SET m.status = IF(t.user_id IS NULL, 'forfeited', 'completed'),
+         m.forfeit_reason = IF(t.user_id IS NULL, 'Did not finish', NULL)
    WHERE m.challenge_id = p_challenge_id AND m.status = 'active';
 
-  SELECT COUNT(*), COALESCE(SUM(status = 'completed'), 0), COALESCE(SUM(amount_paid), 0)
-    INTO v_total, v_done, v_gross
+  SELECT COUNT(*), COALESCE(SUM(status = 'completed'), 0), COALESCE(SUM(amount_paid), 0),
+         COALESCE(SUM(CASE WHEN status = 'forfeited' THEN amount_paid END), 0),
+         COALESCE(SUM(CASE WHEN status = 'completed' THEN amount_paid END), 0)
+    INTO v_total, v_done, v_gross, v_forfeited, v_finished
     FROM challenge_members WHERE challenge_id = p_challenge_id AND status IN ('completed','forfeited');
 
   -- Money
   IF v_type = 'instructor' THEN
-    SET v_fee = v_gross - FLOOR(v_gross * (100 - v_fee_pct) / 100);
-    IF v_gross - v_fee > 0 THEN
+    SET v_share = FLOOR(v_finished * (100 - v_fee_pct) / 100 + v_forfeited * (100 - v_forfeit_pct) / 100);
+    SET v_fee = v_gross - v_share;
+    IF v_share > 0 THEN
       INSERT INTO payouts (user_id, challenge_id, kind, amount, scheduled_for)
-      VALUES (v_instructor, p_challenge_id, 'instructor_earning', v_gross - v_fee, CURDATE() + INTERVAL 1 DAY);
+      VALUES (v_instructor, p_challenge_id, 'instructor_earning', v_share, CURDATE() + INTERVAL 1 DAY);
     END IF;
   ELSEIF v_staked AND v_gross > 0 THEN
-    SET v_fee = ROUND(v_gross * v_fee_pct / 100, 2);
     IF v_done > 0 THEN
-      SET v_each = FLOOR((v_gross - v_fee) / v_done);
-      SET v_fee  = v_gross - v_each * v_done;
+      SET v_bonus = FLOOR(v_forfeited * (100 - v_forfeit_pct) / 100 / v_done);
+      SET v_each  = v_stake + v_bonus;
+      SET v_fee   = v_forfeited - v_bonus * v_done;
       INSERT INTO payouts (user_id, challenge_id, kind, amount, scheduled_for)
-      SELECT user_id, p_challenge_id, 'jackpot', v_each, CURDATE() + INTERVAL 1 DAY
-        FROM challenge_members WHERE challenge_id = p_challenge_id AND status = 'completed';
+      SELECT user_id, p_challenge_id, 'jackpot', amount_paid + v_bonus, CURDATE() + INTERVAL 1 DAY
+        FROM challenge_members WHERE challenge_id = p_challenge_id AND status = 'completed' AND amount_paid > 0;
     ELSE
-      SET v_each = FLOOR((v_gross - v_fee) / v_total);
-      SET v_fee  = v_gross - v_each * v_total;
-      INSERT INTO payouts (user_id, challenge_id, kind, amount, scheduled_for)
-      SELECT user_id, p_challenge_id, 'refund', v_each, CURDATE() + INTERVAL 1 DAY
-        FROM challenge_members WHERE challenge_id = p_challenge_id AND status = 'forfeited' AND amount_paid > 0;
+      SET v_fee = v_forfeited; -- nobody finished: no one to share the 40% with
     END IF;
   END IF;
 
-  INSERT INTO settlements (challenge_id, gross_amount, fee_pct, fee_amount, completers, forfeiters, amount_each)
-  VALUES (p_challenge_id, v_gross, v_fee_pct, v_fee, v_done, v_total - v_done, v_each);
+  INSERT INTO settlements (challenge_id, gross_amount, fee_pct, forfeit_pct, forfeited_amount, fee_amount,
+                           completers, forfeiters, bonus_each, amount_each)
+  VALUES (p_challenge_id, v_gross, v_fee_pct, v_forfeit_pct, v_forfeited, v_fee,
+          v_done, v_total - v_done, v_bonus, v_each);
 
   UPDATE challenges SET status = 'settled' WHERE id = p_challenge_id;
 
   INSERT INTO notifications (user_id, type, title, body, data)
   SELECT user_id, 'challenge_settled',
          IF(status = 'completed', 'You completed the challenge', 'Challenge over'),
-         IF(status = 'completed', 'Your payout is on its way.', 'Your stake went to the people who showed up. Ready for a rematch?'),
+         IF(status = 'completed',
+            IF(v_each IS NULL, 'Well done. You showed up every week.', CONCAT('KES ', FORMAT(amount_paid + COALESCE(v_bonus, 0), 0), ' is on its way to you.')),
+            'You did not finish this one. Ready for a rematch?'),
          JSON_OBJECT('challenge_id', p_challenge_id, 'amount_each', v_each)
     FROM challenge_members WHERE challenge_id = p_challenge_id AND status IN ('completed','forfeited');
 

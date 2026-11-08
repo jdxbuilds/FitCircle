@@ -23,7 +23,7 @@ Every app connection should run `SET time_zone = '+03:00';` so "today" is Nairob
 - **Showing up:** `session_logs` (one proof per member per day), `task_checkins`, `proof_flags`
 - **Staying visible:** `nudges`, `notifications`, `daily_plans`
 - **Money out:** `settlements`, `payouts`
-- **Settings:** `platform_settings` holds the fees (35% instructor-led, 30% everything else) and age limits
+- **Settings:** `platform_settings` holds the fees and forfeit splits (instructor 35%; forfeits 60% group, 100% 75-day), the missed-session limits and age limits
 
 ## Rules the database enforces itself
 
@@ -34,11 +34,12 @@ nobody joins or withdraws after the start · only verified instructors host · n
 ## App calls
 
 - `CALL start_challenge(id)` locks stakes and removes anyone who hasn't paid.
-- `CALL settle_challenge(id)` marks who completed, takes FitCircle's fee, splits the rest among completers and creates payouts.
+- `CALL apply_removals()` removes anyone who missed 3 sessions in a week, or 3 days of a 75-day challenge (run daily).
+- `CALL settle_challenge(id)` marks who completed, returns finishers' stakes plus their share of forfeits, and creates payouts.
 - Read screens from `v_leaderboard`, `v_jackpots`, `v_instructor_dashboard`, `v_member_streaks`.
 
 ## Notes
 
 - `@fitcircle_backfill = 1` lets an admin session import past sessions. Never set it from the app.
 - Insert flags and payments by ID (`VALUES`), not `INSERT … SELECT` from the table the trigger updates; MySQL refuses that.
-- The fee is taken from the whole pool. Payouts are whole shillings (M-Pesa); leftover shillings go to the fee. If nobody completes, everyone is refunded what is left after the fee.
+- Payouts are whole shillings (M-Pesa); leftover shillings go to FitCircle. If nobody in a peer group finishes, FitCircle keeps the forfeited stakes (no one to share the 40% with).
