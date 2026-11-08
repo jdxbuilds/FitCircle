@@ -269,6 +269,7 @@ h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spac
 
 /* stake */
 .amounts{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+.amounts.six{grid-template-columns:repeat(3,1fr)}
 .amounts button{padding:14px 4px; border-radius:14px; background:var(--surface2); font-weight:800; font-size:15px; border:2px solid transparent}
 .amounts button[aria-pressed="true"]{border-color:var(--gold); background:color-mix(in srgb,var(--gold) 14%,var(--surface))}
 .amounts small{display:block; font-size:10.5px; color:var(--muted); font-weight:600}
@@ -640,7 +641,7 @@ V.stake = () => {
     <div class="meta">${isCoach ? `<span>${coach().prog}</span><span>${coach().weeks} weeks</span>` : staked() ? `<span><span class="coin"></span> Jackpot if all ${n} stake: KES ${fmt(pool)}</span>` : '<span>Running without money. Pride is the stake.</span>'}</div>
   </div>
   ${isCoach ? '' : `
-  ${adult() ? `<div class="amounts">${[200,500,1000,2000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
+  ${adult() ? `<div class="amounts six">${[200,500,1000,2000,5000,10000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
   <button class="switch" data-act="noStake" role="switch" aria-checked="${!staked()}" ${adult() ? '' : 'disabled'}>
     <span class="grow"><b style="display:block;font-size:14.5px">Run without stakes</b><span class="small muted">${adult() ? 'Same challenge, no money on the line.' : 'Staked challenges are for ages 18 and up.'}</span></span><span class="tg"></span></button>
   ${staked() ? `<div class="outcomes"><div class="w"><b>Show up</b>Split the Jackpot with everyone who finishes, after the ${FEE_POOL}% FitCircle fee.</div><div class="l"><b>Skip</b>Your KES ${fmt(amt)} goes to the people who showed up.</div></div>` : ''}`}
