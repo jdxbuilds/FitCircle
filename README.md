@@ -11,11 +11,12 @@ Social fitness accountability: join a circle, stake money on showing up, prove e
 
 Every push runs the database rule checks, the API tests and the AWS template build (`.github/workflows/ci.yml`).
 
-## The three formats
+## The four formats
 
 - **Peer Groups:** weekly target, shared stake pool. Miss 3 sessions in a week (or every session, for 2-a-week groups) and you're out: FitCircle keeps 60% of your stake, finishers share 40% on top of getting their own stake back
 - **Instructor Challenges:** verified coaches, paid 1–12 week programmes. Finishers' fees: instructor 65%, FitCircle 35%. Removed members' fees: FitCircle 60%, instructor 40%
 - **Custom 75-Day:** build your own 75 Hard / 75 Soft with daily tasks. Miss 3 days and you're out: FitCircle keeps 100% of your stake; finishers get their stake back
+- **FitCircle Challenges:** open challenges run by FitCircle (for example 30-Day Morning Move). Anyone can join before the start; one stake for everyone, set by FitCircle. Same rules as Peer Groups. *Prototype only so far: the database and API don't have this format yet.*
 
 Every month there is one FitCircle-wide **jackpot**: a prize paid for by a sponsor (for example a Paradise Lost day pass), never from members' stakes. There is one winner, the top performer across all challenges that calendar month: most sessions, then longest streak, then a random draw. The ranking resets on the 1st of every month.
 

@@ -6,12 +6,13 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: a step rail on the left walks the 8-step journey; a live phone on the right runs it.
-   Each challenge format owns a colour: Peer = flame, Instructor = cobalt, 75-Day = emerald. Gold = the sponsor's monthly jackpot prize. */
+   Each challenge format owns a colour: Peer = flame, Instructor = cobalt, 75-Day = emerald, FitCircle Challenge = violet. Gold = the sponsor's monthly jackpot prize. */
 :root{
   --bg:#EFECF5; --panel:#FAF9FD; --surface:#FFFFFF; --surface2:#F4F2F9; --ink:#191630; --muted:#6A6684; --line:#E2DEEC;
   --peer:#F2481F; --peer2:#FF9A1F;
   --coach:#2B55F5; --coach2:#12B0FF;
   --d75:#0A9A6B; --d75b:#86C923;
+  --fc:#7A3DF2; --fc2:#D6338F;
   --gold:#F5A800; --good:#12A150; --warn:#E08A00; --bad:#D93A3A;
   --frame:#15122A;
   --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
@@ -19,11 +20,11 @@
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#0C0A17; --panel:#141126; --surface:#16132A; --surface2:#1F1B38; --ink:#F3F1FF; --muted:#A5A0C2; --line:#2D2848;
-  --peer:#FF6A3D; --peer2:#FFA63A; --coach:#5B7DFF; --coach2:#34C0FF; --d75:#1DBA85; --d75b:#9BDB3A;
+  --peer:#FF6A3D; --peer2:#FFA63A; --coach:#5B7DFF; --coach2:#34C0FF; --d75:#1DBA85; --d75b:#9BDB3A; --fc:#9B6BFF; --fc2:#F0569F;
   --gold:#FFC23A; --good:#35C874; --warn:#FFB02E; --bad:#FF6060; --frame:#000000; color-scheme:dark; }}
 :root[data-theme="dark"]{
   --bg:#0C0A17; --panel:#141126; --surface:#16132A; --surface2:#1F1B38; --ink:#F3F1FF; --muted:#A5A0C2; --line:#2D2848;
-  --peer:#FF6A3D; --peer2:#FFA63A; --coach:#5B7DFF; --coach2:#34C0FF; --d75:#1DBA85; --d75b:#9BDB3A;
+  --peer:#FF6A3D; --peer2:#FFA63A; --coach:#5B7DFF; --coach2:#34C0FF; --d75:#1DBA85; --d75b:#9BDB3A; --fc:#9B6BFF; --fc2:#F0569F;
   --gold:#FFC23A; --good:#35C874; --warn:#FFB02E; --bad:#FF6060; --frame:#000000; color-scheme:dark; }
 
 *{box-sizing:border-box}
@@ -48,7 +49,7 @@ input{font:inherit; color:inherit}
 .rail h1 em{font-style:normal; background:linear-gradient(90deg,var(--peer),var(--gold) 45%,var(--d75) 75%,var(--coach)); -webkit-background-clip:text; background-clip:text; color:transparent}
 .rail .lede{color:var(--muted); max-width:52ch; margin:0; font-size:16px}
 .label{font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted)}
-.segpick{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+.segpick{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
 .segpick button{text-align:left; padding:12px 12px 13px; border-radius:14px; background:var(--panel); border:1.5px solid var(--line); display:flex; flex-direction:column; gap:3px; transition:border-color .2s, transform .2s}
 .segpick button:hover{transform:translateY(-2px)}
 .segpick button[aria-pressed="true"]{border-color:var(--c); box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
@@ -83,6 +84,7 @@ input{font:inherit; color:inherit}
 .seg-peer{--seg:var(--peer); --seg2:var(--peer2)}
 .seg-coach{--seg:var(--coach); --seg2:var(--coach2)}
 .seg-d75{--seg:var(--d75); --seg2:var(--d75b)}
+.seg-fc{--seg:var(--fc); --seg2:var(--fc2)}
 body.seg-peer, body.seg-coach, body.seg-d75{}
 .phone{--soft:color-mix(in srgb,var(--seg) 12%,var(--surface))}
 .statusbar{flex:none; height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 26px 0 30px; font-weight:700; font-size:14px; position:relative; z-index:3}
@@ -132,6 +134,41 @@ h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spac
 .jack .k{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:color-mix(in srgb,var(--gold) 65%,var(--ink))}
 .jack b{display:block; font-size:15px; line-height:1.25}
 .jack .m{font-size:12.5px; color:var(--muted)}
+button.jack{cursor:pointer; font:inherit; color:inherit}
+.jack .tap{display:block; margin-top:4px; font-size:12px; font-weight:800; color:color-mix(in srgb,var(--gold) 70%,var(--ink))}
+/* Challenge winner on the end screen */
+.champ{display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:20px; color:#fff; background:linear-gradient(135deg,var(--seg),var(--seg2)); animation:pop .6s cubic-bezier(.34,1.56,.64,1) both}
+.champ .cr{font-size:30px; animation:crown 1.2s .3s ease-in-out both}
+.champ .k{display:block; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; opacity:.9}
+.champ b{display:block; font-family:var(--display); font-size:20px; letter-spacing:-.02em}
+.champ span.s{font-size:12.5px; opacity:.92}
+@keyframes pop{from{transform:scale(.85); opacity:0} to{transform:none; opacity:1}}
+@keyframes crown{0%{transform:scale(0) rotate(-25deg)} 60%{transform:scale(1.25) rotate(8deg)} 100%{transform:none}}
+/* FitCircle Challenges */
+.fccard{display:flex; flex-direction:column; gap:8px; text-align:left; width:100%; padding:16px; border-radius:20px; background:var(--surface); border:1.5px solid var(--line); font:inherit; color:inherit; cursor:pointer}
+.fccard:hover{border-color:var(--fc)}
+.fccard .top{display:flex; align-items:center; gap:12px}
+.fccard .ph{width:46px; height:46px; border-radius:14px; display:grid; place-items:center; color:#fff; flex:none}
+.fccard .ph .ic{width:22px; height:22px}
+.rankpill{display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,.2); padding:3px 9px; border-radius:999px; font-weight:700}
+/* Monthly jackpot winner reveal */
+.sheet.reveal{background:radial-gradient(120% 60% at 50% 0%, color-mix(in srgb,var(--gold) 30%,#1a1300), #120e22 70%); color:#fff; text-align:center; border:1px solid color-mix(in srgb,var(--gold) 45%,transparent)}
+.reveal .rays{position:relative; height:96px; display:grid; place-items:center}
+.reveal .rays::before{content:""; position:absolute; width:150px; height:150px; border-radius:50%; background:repeating-conic-gradient(color-mix(in srgb,var(--gold) 40%,transparent) 0 10deg, transparent 10deg 30deg); -webkit-mask:radial-gradient(circle,#000 20%,transparent 70%); mask:radial-gradient(circle,#000 20%,transparent 70%); animation:spin 14s linear infinite}
+.reveal .crownbig{position:relative; font-size:62px; animation:crown 1.1s .15s cubic-bezier(.34,1.56,.64,1) both, float 3s 1.3s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{50%{transform:translateY(-6px)}}
+.reveal .lbl{font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--gold)}
+.reveal h3{margin:4px 0 2px; font-family:var(--display); font-size:30px; letter-spacing:-.03em}
+.reveal .sub2{font-size:13px; color:rgba(255,255,255,.75)}
+.reveal .prize{margin:14px 0; padding:14px; border-radius:18px; background:rgba(0,0,0,.35); border:1px solid color-mix(in srgb,var(--gold) 35%,transparent)}
+.reveal .prize b{display:block; font-family:var(--display); font-size:18px}
+.reveal .prize small{color:rgba(255,255,255,.7)}
+.reveal .rs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px}
+.reveal .rs div{padding:10px 6px; border-radius:12px; background:rgba(255,255,255,.07); font-size:11px; color:rgba(255,255,255,.7)}
+.reveal .rs b{display:block; font-family:var(--display); font-size:19px; color:var(--gold)}
+.sheet.reveal .btn.goldbtn{background:var(--gold); color:#1a1300}
+.sheet.reveal .btn.ghost{color:#fff; background:rgba(255,255,255,.1); border-color:transparent}
 .stick{margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:8px}
 .link{color:var(--seg); font-weight:700; font-size:14px; text-align:center}
 
@@ -184,6 +221,7 @@ h3.big{font-family:var(--display); font-size:30px; line-height:1.02; letter-spac
 .fmt.peer{background:linear-gradient(135deg,var(--peer),var(--peer2))}
 .fmt.coach{background:linear-gradient(135deg,var(--coach),var(--coach2))}
 .fmt.d75{background:linear-gradient(135deg,var(--d75),var(--d75b))}
+.fmt.fc{background:linear-gradient(135deg,var(--fc),var(--fc2))}
 .fmt b{font-family:var(--display); font-size:22px; letter-spacing:-.02em}
 .fmt span{font-size:13.5px; opacity:.92; max-width:30ch}
 .fmt .tag{position:absolute; right:14px; top:14px; background:rgba(255,255,255,.22); padding:4px 9px; border-radius:999px; font-size:11px; font-weight:700}
@@ -395,7 +433,7 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
       <div><b>FitCircle</b><small>Nairobi · Launching September 2026</small></div>
     </div>
     <h1>Fitness with <em>somebody watching.</em></h1>
-    <p class="lede">A clickable MVP of the FitCircle flow. Pick a challenge format, then tap through the phone or jump to any of the 8 steps. Everything on the phone works: stake, log proof, nudge a friend, settle the stake pool, chase the monthly jackpot.</p>
+    <p class="lede">A clickable MVP of the FitCircle flow. Pick one of the four challenge formats, then tap through the phone or jump to any of the 8 steps. Everything on the phone works: stake, log proof, nudge a friend, settle the stake pool, chase the monthly jackpot.</p>
 
     <div style="display:flex;flex-direction:column;gap:10px">
       <span class="label">View the app as</span>
@@ -433,6 +471,7 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
         <li>Stakes lock at the start</li>
         <li>Miss 3 sessions in a week: you're out</li>
         <li>75-day: miss 3 days and you're out</li>
+        <li>FitCircle Challenges: open to all, Peer rules</li>
         <li>Instructors are verified</li>
         <li>Anyone can flag fake proof</li>
         <li>Finishers: stake back + 40% of forfeits</li>
@@ -486,7 +525,15 @@ const SEG = {
   peer:  {name:'Peer Group', short:'Peer', icon:'users', blurb:'Friends, family or colleagues. One weekly target, one shared stake pool.', tag:'Most popular'},
   coach: {name:'Instructor Challenge', short:'Instructor', icon:'medal', blurb:'A verified trainer runs a 1–12 week programme and guides you daily.', tag:'Paid programme'},
   d75:   {name:'Custom 75-Day', short:'75-Day', icon:'cal', blurb:'Pick your daily tasks. Go Hard or Soft. Set your own rules and stakes.', tag:'Premium builder'},
+  fc:    {name:'FitCircle Challenge', short:'FitCircle', icon:'trophy', blurb:'Open challenges run by FitCircle. Join people across Nairobi and climb the leaderboard.', tag:'Open to all'},
 };
+// FitCircle Challenges: open to everyone, run by FitCircle, same money rules as Peer Groups. One stake for everyone.
+const FC_CH = [
+  {id:'morning', name:'30-Day Morning Move', kind:'Cardio', where:'Nairobi West', days:30, target:5, stake:500, joined:23, onTrack:16, blurb:'Any cardio before 9am: run, walk, cycle or skip. Log it with proof.'},
+  {id:'core', name:'21-Day Core Builder', kind:'Strength', where:'Anywhere', days:21, target:4, stake:200, joined:57, onTrack:41, blurb:'Four short core sessions a week. Follow along at home or at the gym.'},
+  {id:'karura', name:'Karura 100K in a Month', kind:'Running', where:'Karura Forest', days:30, target:3, stake:1000, joined:41, onTrack:30, blurb:'Three runs a week. Hit 100 km together by the end of the month.'},
+  {id:'weekend', name:'Weekend Warriors', kind:'Mixed', where:'Anywhere', days:42, target:2, stake:2000, joined:18, onTrack:13, blurb:'Two sessions every weekend for six weeks. Any sport counts.'},
+];
 const COACHES = [
   {id:'wanjiru', name:'Coach Wanjiru M.', init:'WM', prog:'Karura Forest 10K', weeks:6, fee:1500, joined:48, rating:4.9, cut:65, tags:['Running','Beginner friendly'], grad:['#2B55F5','#12B0FF'], today:'Tempo run · 5 km at conversational pace, then 4 × 100 m strides.'},
   {id:'otieno',  name:'Coach Otieno K.',  init:'OK', prog:'Kettlebell Strength Block', weeks:4, fee:2000, joined:31, rating:4.8, cut:65, tags:['Strength','Home workout'], grad:['#6A3DF2','#2B55F5'], today:'Swings 5 × 15, goblet squats 4 × 10, 10-min finisher.'},
@@ -505,7 +552,7 @@ const fresh = () => ({
   user:{name:'Amani', phone:'0712 345 678', age:'24', goals:['Consistency','Run a 10K'], coaches:['Running']}, err:'',
   signupAs:'member', signin:{as:'member', phone:'0712 345 678', sent:false, code:''},
   peer:{name:'Ofisi Movers', target:3, weeks:4, code:'FC-7Q2K'},
-  coachId:'wanjiru',
+  coachId:'wanjiru', fcId:'morning',
   d75:{mode:'soft', tasks:['workout','water','read'], day:23, today:['water']},
   stake:{peer:500, d75:1000}, noStake:false, method:'mpesa', pay:'confirm',
   role:'member', cFilter:'all', reviewed:{}, planSent:false, cNudged:false,
@@ -517,6 +564,7 @@ const fresh = () => ({
     peer:[{n:'Amani', me:1, s:2, st:9, td:0}, {n:'Achieng', s:3, st:14, td:1}, {n:'Njeri', s:3, st:11, td:1}, {n:'Brian', s:2, st:6, td:0}, {n:'Wambui', s:2, st:4, td:1}, {n:'Kevin', s:1, st:0, td:0}],
     coach:[{n:'Mercy', s:5, st:17, td:1}, {n:'Amani', me:1, s:4, st:9, td:0}, {n:'Dennis', s:4, st:12, td:1}, {n:'Faith', s:4, st:8, td:1}, {n:'Collins', s:3, st:3, td:0}, {n:'Lilian', s:2, st:0, td:0}],
     d75:[{n:'Achieng', s:23, st:23, td:1}, {n:'Amani', me:1, s:22, st:22, td:0}, {n:'Njeri', s:22, st:22, td:1}, {n:'Brian', s:19, st:4, td:0}],
+    fc:[{n:'Amara', s:5, st:18, td:1}, {n:'Brian', s:5, st:17, td:1}, {n:'Zara', s:4, st:17, td:1}, {n:'Halima', s:4, st:12, td:1}, {n:'Amani', me:1, s:3, st:9, td:0}, {n:'Mercy', s:3, st:10, td:0}, {n:'Kevin', s:2, st:2, td:0}, {n:'Otieno', s:1, st:0, td:0}],
   },
 });
 let S = fresh();
@@ -528,27 +576,34 @@ const FORFEIT_GROUP = 60, FORFEIT_SOLO = 100, MAX_MISSED = 3; // FitCircle's cut
 // that calendar month wins (most sessions, then longest streak, then a draw). The ranking resets on the 1st.
 const JACKPOT = { prize: 'Paradise Lost Full-Day Pass (2 pax)', sponsor: 'Paradise Lost' };
 const MONTH = new Date().toLocaleString('en-GB', { month: 'long' });
-const jackpotCard = (note) => `<div class="jack"><span class="crown">🏆</span><span class="grow">
+const LAST_MONTH = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleString('en-GB', { month: 'long' });
+// Last month's winner, shown in the reveal (demo data)
+const LAST_WINNER = { name: 'Amara Njeri', sessions: 31, streak: 24, ranked: 1240 };
+const jackpotCard = (note) => `<button class="jack" data-act="reveal"><span class="crown">🏆</span><span class="grow">
   <span class="k">${MONTH} jackpot · resets on the 1st</span>
   <b>${JACKPOT.prize}</b>
-  <span class="m">${note || `You're #4 on FitCircle this month. Most sessions wins.`} Paid for by ${JACKPOT.sponsor}, never from members' stakes.</span></span></div>`;
+  <span class="m">${note || `You're #4 on FitCircle this month. Most sessions wins.`} Paid for by ${JACKPOT.sponsor}, never from members' stakes.</span><span class="tap">Tap to see ${LAST_MONTH}'s winner →</span></span></button>`;
 const sgn = n => (n < 0 ? '−' : '+') + fmt(Math.abs(n));
 const fmt = n => Math.round(n).toLocaleString('en-KE');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const coach = () => COACHES.find(c => c.id === S.coachId);
+const fcc = () => FC_CH.find(c => c.id === S.fcId);
 const members = () => S.members[S.seg];
 const me = () => members().find(m => m.me);
 const adult = () => +S.user.age >= 18;
 const staked = () => S.seg === 'coach' || (!S.noStake && adult());
-const stakeAmt = () => S.seg === 'coach' ? coach().fee : S.stake[S.seg];
-const target = () => S.seg === 'peer' ? S.peer.target : S.seg === 'coach' ? 5 : 7;
+const stakeAmt = () => S.seg === 'coach' ? coach().fee : S.seg === 'fc' ? fcc().stake : S.stake[S.seg];
+// How many people pay into the pool (a FitCircle Challenge has more people than the leaderboard preview shows)
+const poolCount = () => S.seg === 'fc' ? fcc().joined : members().length;
+const ranked = () => [...members()].sort((a,b) => b.s - a.s || b.st - a.st);
+const target = () => S.seg === 'peer' ? S.peer.target : S.seg === 'coach' ? 5 : S.seg === 'fc' ? fcc().target : 7;
 const colorOf = n => COLORS[[...n].reduce((a,c) => a + c.charCodeAt(0), 0) % COLORS.length];
 const av = (n, sz) => `<span class="av" style="background:${colorOf(n)};${sz ? `width:${sz}px;height:${sz}px;font-size:${sz*.38}px` : ''}">${esc(n[0])}</span>`;
 
 // ---------- journey steps ----------
 const STEPS = [
   ['Sign up', 'Profile, goals, format', 'welcome'],
-  ['Join or create', 'Group, programme or 75-day', 'setup'],
+  ['Join or create', 'Group, programme, 75-day or open challenge', 'setup'],
   ['Commit your stake', 'Lock it in the stake pool', 'stake'],
   ['Show up and log', 'Same-day photo proof', 'log'],
   ['Track your group', 'Live leaderboard and feed', 'board'],
@@ -556,8 +611,8 @@ const STEPS = [
   ['Challenge ends', 'Stakes settled, sessions count to the jackpot', 'end'],
   ['Win and recruit', 'Share, start the next one', 'win'],
 ];
-const STEP_OF = {welcome:0, start:0, signin:0, signup:0, terms:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
-const setupScreen = () => S.seg === 'peer' ? 'setup' : S.seg === 'coach' ? 'browse' : 'build';
+const STEP_OF = {welcome:0, start:0, signin:0, signup:0, terms:0, format:0, setup:1, browse:1, coachDetail:1, build:1, fcBrowse:1, fcDetail:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
+const setupScreen = () => S.seg === 'peer' ? 'setup' : S.seg === 'coach' ? 'browse' : S.seg === 'fc' ? 'fcBrowse' : 'build';
 
 // ---------- screens ----------
 const top = (title, back = true) => `<div class="topbar">${back ? `<button class="iconbtn" data-act="back" aria-label="Back">${I.back}</button>` : ''}<h2 ${back ? '' : 'style="padding:0"'}>${title}</h2></div>`;
@@ -601,6 +656,13 @@ const MEMBER_SEGMENTS = [
     ['If you finish', 'You get your full stake back plus your share of the 40%.'],
     ['If you fall short', 'If you stay in but miss your weekly target, you will not finish and your stake is forfeited at the end in the same way.'],
   ]],
+  ['fc', 'FitCircle Challenges', [
+    ['What they are', 'Open challenges run by FitCircle. Anyone who meets the age rules can join until the challenge starts.'],
+    ['You commit to', 'The weekly session target FitCircle sets for the challenge, for its whole length. Everyone in a challenge stakes the same amount, set by FitCircle.'],
+    ["You're out when", 'You miss 3 sessions in one week. In challenges with a 2-a-week target, missing both sessions in a week puts you out. Removal is automatic.'],
+    ['If you are out', 'Your stake is forfeited: 60% goes to FitCircle and 40% is shared equally by the members who finish.'],
+    ['If you finish', 'You get your full stake back plus your share of the 40%.'],
+  ]],
   ['d75', '75 Hard and 75 Soft', [
     ['You commit to', 'Every daily task you chose, every day, for 75 days, with proof each day.'],
     ["You're out when", 'You miss 3 days in total. A day counts only when every task is ticked and proof is uploaded.'],
@@ -625,7 +687,7 @@ const MEMBER_TERMS_2 = [
   ['6. Settlement and payouts', [
     'Challenges are settled automatically the night after they end. Payouts go to your M-Pesa number the day after settlement.',
     'M-Pesa pays whole shillings. Shares are rounded down to the shilling and the leftover goes to FitCircle.',
-    'If nobody in a Peer Group finishes, FitCircle keeps the forfeited stakes.',
+    'If nobody in a Peer Group or FitCircle Challenge finishes, FitCircle keeps the forfeited stakes.',
     'A challenge with a flag still under review is settled once the flag is decided.',
   ]],
   ['7. Sponsored jackpots', [
@@ -815,6 +877,28 @@ V.coachDetail = () => { const c = coach(); return `${top('Programme')}
     <div class="row small" style="margin-top:8px"><span><b>${c.cut}%</b> to ${c.name.replace('Coach ','')}</span><span class="muted" style="margin-left:auto">${100-c.cut}% FitCircle</span></div></div>
   <div class="stick"><button class="btn" data-act="go" data-arg="stake">Join for KES ${fmt(c.fee)} ${I.arrow}</button></div>`; };
 
+V.fcBrowse = () => `${top('FitCircle Challenges')}
+  <div><h3 class="big">Open challenges. Anyone can join.</h3><p class="sub" style="margin-top:6px">Run by FitCircle. One stake for everyone, the same rules as Peer Groups.</p></div>
+  ${FC_CH.map(c => `
+    <button class="fccard" data-act="openFc" data-arg="${c.id}">
+      <span class="top"><span class="ph" style="background:linear-gradient(135deg,var(--fc),var(--fc2))">${I.trophy}</span>
+        <span class="grow" style="min-width:0"><b style="display:block">${c.name}</b><span class="small muted">${c.kind} · ${c.where} · starts Monday</span></span></span>
+      <span class="row small" style="gap:8px"><span class="pill seg">${c.days} days</span><span class="pill seg">${c.target}× a week</span><span class="pill gold num">KES ${fmt(c.stake)}</span><span class="muted num" style="margin-left:auto">${c.joined} joined</span></span>
+    </button>`).join('')}`;
+
+V.fcDetail = () => { const c = fcc(), pool = c.stake * c.joined, est = c.stake + Math.floor(c.stake * (c.joined - c.onTrack) * (100 - FORFEIT_GROUP) / 100 / c.onTrack);
+  return `${top('FitCircle Challenge')}
+  <div class="hero"><div class="k">${c.kind} · ${c.where} · starts Monday</div>
+    <div class="v" style="font-size:32px">${c.name}</div>
+    <div class="meta"><span class="num">${c.days} days</span><span class="num">${c.target} sessions a week</span><span class="num">${c.joined} joined</span></div></div>
+  <div class="card small">${c.blurb}</div>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="row"><div class="grow"><div class="small muted">Stake pool so far</div><div class="num" style="font-family:var(--display);font-size:26px;font-weight:800">KES ${fmt(pool)}</div></div>
+      <div style="text-align:right"><div class="small muted">If ${c.onTrack} of ${c.joined} finish</div><div class="num" style="font-family:var(--display);font-size:18px;font-weight:800;color:var(--good)">≈ KES ${fmt(est)}</div></div></div>
+    <span class="small muted">Everyone stakes KES ${fmt(c.stake)}. Miss ${MAX_MISSED} sessions in a week and you're out: ${FORFEIT_GROUP}% of your stake goes to FitCircle and ${100 - FORFEIT_GROUP}% to the finishers. Finish and you get your stake back plus your share.</span></div>
+  ${jackpotCard('Your sessions here also count towards the monthly jackpot.')}
+  <div class="stick"><button class="btn" data-act="go" data-arg="stake">Join for KES ${fmt(c.stake)} ${I.arrow}</button></div>`; };
+
 V.build = () => `${top('Build your 75')}
   <div><h3 class="big">75 days. Your rules.</h3><p class="sub" style="margin-top:6px">Every task, every day, with proof. Miss a day and the rules decide what happens.</p></div>
   <div class="seg-ctrl"><button data-act="mode" data-arg="soft" aria-pressed="${S.d75.mode==='soft'}">75 Soft</button><button data-act="mode" data-arg="hard" aria-pressed="${S.d75.mode==='hard'}">75 Hard</button></div>
@@ -823,16 +907,16 @@ V.build = () => `${top('Build your 75')}
   <div class="stick"><button class="btn" data-act="go" data-arg="stake" ${S.d75.tasks.length < 2 ? 'disabled' : ''}>${S.d75.tasks.length} daily tasks · Continue ${I.arrow}</button></div>`;
 
 V.stake = () => {
-  const isCoach = S.seg === 'coach', amt = stakeAmt(), n = members().length;
+  const isCoach = S.seg === 'coach', isFc = S.seg === 'fc', amt = stakeAmt(), n = poolCount();
   const pool = amt * n;
   return `${top(isCoach ? 'Pay entry fee' : 'Commit your stake')}
   <div class="hero">
     <div class="k">${isCoach ? 'Entry fee' : 'Your stake'}</div>
     <div class="v num"><small>KES</small>${staked() ? fmt(amt) : '0'}</div>
-    <div class="meta">${isCoach ? `<span>${coach().prog}</span><span>${coach().weeks} weeks</span>` : staked() ? `<span><span class="coin"></span> Stake pool if all ${n} stake: KES ${fmt(pool)}</span>` : '<span>Running without money. Pride is the stake.</span>'}</div>
+    <div class="meta">${isFc && staked() ? `<span>${fcc().name}</span>` : ''}${isCoach ? `<span>${coach().prog}</span><span>${coach().weeks} weeks</span>` : staked() ? `<span><span class="coin"></span> Stake pool if all ${n} stake: KES ${fmt(pool)}</span>` : '<span>Running without money. Pride is the stake.</span>'}</div>
   </div>
   ${isCoach ? '' : `
-  ${adult() ? `<div class="amounts six">${[200,500,1000,2000,5000,10000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
+  ${isFc ? (adult() ? `<p class="note">${I.users}FitCircle sets one stake for everyone in this challenge: KES ${fmt(amt)}.</p>` : '') : adult() ? `<div class="amounts six">${[200,500,1000,2000,5000,10000].map(a => `<button data-act="amt" data-arg="${a}" aria-pressed="${!S.noStake && S.stake[S.seg]===a}" class="num">${fmt(a)}<small>KES</small></button>`).join('')}</div>` : ''}
   <button class="switch" data-act="noStake" role="switch" aria-checked="${!staked()}" ${adult() ? '' : 'disabled'}>
     <span class="grow"><b style="display:block;font-size:14.5px">Run without stakes</b><span class="small muted">${adult() ? 'Same challenge, no money on the line.' : 'Staked challenges are for ages 18 and up.'}</span></span><span class="tg"></span></button>
   ${staked() ? (S.seg === 'd75'
@@ -861,6 +945,13 @@ const heroFor = () => {
       <div class="bar"><i style="width:${Math.min(100, m.s / target() * 100)}%"></i></div>
       <div class="meta" style="margin-top:6px"><span class="num">You: ${m.s} of ${target()} sessions this week</span></div></div>`;
   }
+  if (S.seg === 'fc') { const c = fcc(), pool = staked() ? stakeAmt() * c.joined : 0, rank = ranked().indexOf(m) + 1, day = Math.round(c.days * .6);
+    return `<div class="hero"><div class="k">${c.name} · Day ${day} of ${c.days}</div>
+      <div class="v num">${staked() ? `<small>KES</small><span data-count="${pool}">${fmt(pool)}</span>` : `<span>${c.joined} in</span>`}</div>
+      <div class="meta"><span>${staked() ? '<span class="coin"></span> Stake pool' : 'No stakes for you'}</span><span class="num">${c.onTrack} of ${c.joined} on track</span><span class="rankpill num">#${rank} of ${c.joined}</span></div>
+      <div class="bar"><i style="width:${Math.min(100, m.s / target() * 100)}%"></i></div>
+      <div class="meta" style="margin-top:6px"><span class="num">You: ${m.s} of ${target()} sessions this week</span></div></div>`;
+  }
   if (S.seg === 'coach') { const c = coach();
     return `<div class="hero"><div class="k">${c.prog} · Week 3 of ${c.weeks}</div>
       <div class="v" style="font-size:30px;margin-top:10px">Today: ${c.today.split('·')[0]}</div>
@@ -877,7 +968,7 @@ const heroFor = () => {
 
 V.home = () => {
   const m = me(), days = ['M','T','W','T','F','S','S'], todayIdx = 3;
-  const doneDays = S.seg === 'd75' ? [0,1,2] : S.seg === 'coach' ? [0,1,2] : [0,2];
+  const doneDays = S.seg === 'd75' || S.seg === 'coach' || S.seg === 'fc' ? [0,1,2] : [0,2];
   if (S.logged) doneDays.push(todayIdx);
   return `
   <div class="row"><div class="grow"><div class="small muted">Habari, ${esc(S.user.name || 'Amani')}</div><div style="font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em">${SEG[S.seg].name}</div></div>
@@ -895,7 +986,7 @@ V.home = () => {
     <div class="tasks">${S.d75.tasks.map(id => { const t = TASKS.find(x => x.id === id); return `<button class="task" data-act="dtask" data-arg="${id}" aria-pressed="${S.d75.today.includes(id)}"><span class="bx">${I.check}</span>${t.t}</button>`; }).join('')}</div></div>
   <div class="card"><div class="row" style="margin-bottom:10px"><b class="grow">Your 75</b><span class="small muted num">${S.d75.day - 1} done</span></div>
     <div class="grid75">${Array.from({length:75}, (_, i) => `<i class="${i < S.d75.day - 1 ? 'd' : i === S.d75.day - 1 ? (S.logged ? 'd' : 't') : ''}"></i>`).join('')}</div></div>` : ''}
-  <div class="card"><div class="row" style="margin-bottom:4px"><b class="grow">${S.seg === 'coach' ? 'Programme leaderboard' : 'Your circle'}</b><button class="link" data-act="go" data-arg="board">See all</button></div>
+  <div class="card"><div class="row" style="margin-bottom:4px"><b class="grow">${S.seg === 'coach' ? 'Programme leaderboard' : S.seg === 'fc' ? 'Leaderboard' : 'Your circle'}</b><button class="link" data-act="go" data-arg="board">See all</button></div>
     ${board(3)}</div>
   <button class="link" data-act="skipEnd" style="padding:4px 0 8px">Demo: fast-forward to challenge end →</button>`;
 };
@@ -916,7 +1007,7 @@ const board = (limit) => {
 
 V.board = () => {
   const posts = members().filter(m => m.td);
-  return `<div class="topbar"><h2 style="padding:0">${S.seg === 'coach' ? coach().prog : S.seg === 'd75' ? 'Your 75 squad' : esc(S.peer.name)}</h2></div>
+  return `<div class="topbar"><h2 style="padding:0">${S.seg === 'coach' ? coach().prog : S.seg === 'd75' ? 'Your 75 squad' : S.seg === 'fc' ? fcc().name : esc(S.peer.name)}</h2></div>
   <div class="seg-ctrl"><button data-act="tab" data-arg="board" aria-pressed="${S.boardTab==='board'}">Leaderboard</button><button data-act="tab" data-arg="feed" aria-pressed="${S.boardTab==='feed'}">Proof feed</button></div>
   ${S.boardTab === 'board' ? `<div class="card">${board()}</div>
     <p class="note">${I.hand}People who haven't logged get a nudge from you. It's how the circle keeps everyone honest.</p>` : `
@@ -945,7 +1036,7 @@ V.alerts = () => {
     ['hand', '#C2338A', 'Achieng nudged you', '“Come on, we are at the gym already 💪”', '07:02'],
     ...(S.seg === 'coach' ? [['medal', '#2B55F5', c.name, `Voice note: ${c.today}`, '05:45']] : []),
     ['flame', '#E08A00', `${S.seg === 'd75' ? 'Brian' : 'Kevin'} is at risk`, S.seg === 'd75' ? 'Missed 2 days. One more and they are out.' : 'Missed 2 sessions this week. One more and they are out. Send a nudge.', 'Yesterday'],
-    ...(staked() && S.seg !== 'coach' ? [['coin', '#F5A800', 'Stake pool update', `Pool is KES ${fmt(stakeAmt() * members().length)}. Anyone who misses ${MAX_MISSED} sessions in a week is out, and ${100 - FORFEIT_GROUP}% of their stake comes to the finishers.`, 'Mon']] : []),
+    ...(staked() && S.seg !== 'coach' ? [['coin', '#F5A800', 'Stake pool update', `Pool is KES ${fmt(stakeAmt() * poolCount())}. Anyone who misses ${MAX_MISSED} sessions in a week is out, and ${100 - FORFEIT_GROUP}% of their stake comes to the finishers.`, 'Mon']] : []),
     ['shield', '#0A9A6B', 'Flag reviewed', 'A flagged session in your circle was checked and approved.', 'Sun'],
   ];
   return `<div class="topbar"><h2 style="padding:0">Reminders</h2></div>
@@ -955,39 +1046,54 @@ V.alerts = () => {
 
 const settlement = () => {
   const list = members();
-  const done = S.seg === 'peer' ? ['Amani','Achieng','Njeri','Wambui'] : S.seg === 'd75' ? ['Amani','Achieng','Njeri'] : list.map(m => m.n);
-  const amt = stakeAmt(), pool = amt * list.length, forfeited = amt * (list.length - done.length);
+  const done = S.seg === 'peer' ? ['Amani','Achieng','Njeri','Wambui'] : S.seg === 'd75' ? ['Amani','Achieng','Njeri']
+    : S.seg === 'fc' ? list.filter(m => !['Kevin','Otieno'].includes(m.n)).map(m => m.n) : list.map(m => m.n);
+  // A FitCircle Challenge settles everyone who joined, not just the people in the preview list
+  const n = poolCount(), nDone = S.seg === 'fc' ? fcc().onTrack : done.length;
+  const amt = stakeAmt(), pool = amt * n, forfeited = amt * (n - nDone);
   const pct = S.seg === 'd75' ? FORFEIT_SOLO : FORFEIT_GROUP;
-  const bonus = Math.floor(forfeited * (100 - pct) / 100 / done.length), each = amt + bonus, fee = forfeited - bonus * done.length;
-  return {list, done, amt, pool, forfeited, pct, bonus, fee, each};
+  const bonus = Math.floor(forfeited * (100 - pct) / 100 / nDone), each = amt + bonus, fee = forfeited - bonus * nDone;
+  return {list, done, n, nDone, amt, pool, forfeited, pct, bonus, fee, each};
 };
 
 const monthNote = () => `Every session you logged here counts towards the ${MONTH} jackpot.`;
+// The challenge's top performer: most sessions, then longest streak, among those who finished
+const champCard = () => {
+  const fin = S.seg === 'coach' || !staked() ? ranked() : ranked().filter(m => settlement().done.includes(m.n));
+  const w = fin[0]; if (!w) return '';
+  const who = w.me ? 'You' : w.n;
+  return `<div class="champ"><span class="cr">👑</span><span class="grow"><span class="k">Challenge winner · top performer</span><b>${esc(who)}${w.me ? ' won!' : ''}</b>
+    <span class="s num">${S.seg === 'd75' ? `${w.s} days` : `Most sessions`} · ${w.st}-day streak</span></span></div>`;
+};
 
 V.end = () => {
   if (S.seg === 'coach') { const c = coach(); return `
     <div class="topbar"><h2 style="padding:0">Programme complete</h2></div>
     <div class="hero"><div class="k">${c.prog}</div><div class="v num"><span data-count="28">28</span><small style="margin-left:6px">/ 30</small></div><div class="meta"><span>sessions logged over ${c.weeks} weeks</span></div><div class="bar"><i style="width:93%"></i></div></div>
+    ${champCard()}
     <div class="card"><div class="small muted" style="margin-bottom:10px">Finishers, by sessions logged</div>${board(4)}</div>
     <div class="card row"><span class="av" style="background:linear-gradient(135deg,${c.grad[0]},${c.grad[1]})">${c.init[0]}</span><span class="small grow">${c.name} earned <b>${c.cut}%</b> of the entry fees from ${c.joined} people. You made that possible.</span></div>
     ${jackpotCard(monthNote())}
     <div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`; }
   if (!staked()) return `<div class="topbar"><h2 style="padding:0">Challenge complete</h2></div>
     <div class="hero"><div class="k">No-stakes challenge</div><div class="v">You finished.</div><div class="meta"><span>Every session logged, all with proof.</span></div></div>
+    ${champCard()}
     <div class="card">${board()}</div>
     ${jackpotCard(monthNote())}
     <div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`;
   const s = settlement();
   return `<div class="topbar"><h2 style="padding:0">${S.seg === 'd75' ? 'Challenge settled' : 'Settling the stake pool'}</h2></div>
   <div class="hero"><div class="k">Final pool</div><div class="v num"><small>KES</small><span data-count="${s.pool}">${fmt(s.pool)}</span></div>
-    <div class="meta"><span class="num">${s.done.length} completed · ${s.list.length - s.done.length} forfeited</span></div></div>
+    <div class="meta"><span class="num">${s.nDone} completed · ${s.n - s.nDone} forfeited</span></div></div>
+  ${champCard()}
   <div class="settle">${s.list.map((m, i) => { const ok = s.done.includes(m.n); return `
     <div class="it" style="animation-delay:${.15 + i * .12}s">${av(m.n, 32)}<b>${esc(m.me ? 'You' : m.n)}</b>
       <span class="pill ${ok ? 'good' : 'bad'}">${ok ? 'Completed' : 'Out'}</span>
-      <span class="amt ${ok ? 'plus' : 'minus'}">${ok ? (s.bonus ? sgn(s.bonus) : 'Stake back') : '−' + fmt(s.amt)}</span></div>`; }).join('')}</div>
+      <span class="amt ${ok ? 'plus' : 'minus'}">${ok ? (s.bonus ? sgn(s.bonus) : 'Stake back') : '−' + fmt(s.amt)}</span></div>`; }).join('')}
+    ${s.n > s.list.length ? `<div class="small muted num" style="padding:6px 4px">+ ${s.n - s.list.length} more: ${s.nDone - s.done.length} completed, ${s.n - s.nDone - (s.list.length - s.done.length)} forfeited</div>` : ''}</div>
   <div class="card math num"><span class="muted">Forfeited stakes</span><span>KES ${fmt(s.forfeited)}</span>
     <span class="muted">FitCircle keeps (${s.pct}%)</span><span>KES ${fmt(s.fee)}</span>
-    ${s.pct < 100 ? `<span class="muted">Shared by ${s.done.length} finishers (${100 - s.pct}%)</span><span>KES ${fmt(s.bonus)} each</span>` : ''}
+    ${s.pct < 100 ? `<span class="muted">Shared by ${s.nDone} finishers (${100 - s.pct}%)</span><span>KES ${fmt(s.bonus)} each</span>` : ''}
     <span class="tot">Each finisher receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
   ${jackpotCard(monthNote())}
     <div class="stick"><button class="btn" data-act="go" data-arg="win">${I.trophy} Collect KES ${fmt(s.each)}</button></div>`;
@@ -997,14 +1103,14 @@ V.win = () => {
   const s = staked() && S.seg !== 'coach' ? settlement() : null, c = coach();
   const headline = s ? `KES ${fmt(s.each)}` : S.seg === 'coach' ? 'Programme done' : '75 / 75';
   const line = s ? `Put in KES ${fmt(s.amt)}. Took home KES ${fmt(s.each)}.` : S.seg === 'coach' ? `${c.prog} with ${c.name}` : 'Every task, every day.';
-  const shareText = `I just finished ${S.seg === 'coach' ? c.prog : S.seg === 'd75' ? 'my 75-day challenge' : esc(S.peer.name) + ' on FitCircle'}. ${s ? `Took home KES ${fmt(s.each)} from the stake pool.` : ''} Join my next circle: fitcircle.co/j/${S.peer.code}`;
+  const shareText = `I just finished ${S.seg === 'coach' ? c.prog : S.seg === 'd75' ? 'my 75-day challenge' : S.seg === 'fc' ? fcc().name + ' on FitCircle' : esc(S.peer.name) + ' on FitCircle'}. ${s ? `Took home KES ${fmt(s.each)} from the stake pool.` : ''} Join my next circle: fitcircle.co/j/${S.peer.code}`;
   return `<div class="topbar"><h2 style="padding:0">You showed up.</h2></div>
   <div class="sharecard"><div class="row" style="gap:8px">${I.trophy}<b>FitCircle · ${SEG[S.seg].name}</b></div>
     <div class="big">${headline}</div><div>${line}</div>
-    <div class="stats num"><div><b>${S.seg === 'd75' ? 75 : S.seg === 'coach' ? 28 : S.peer.weeks * S.peer.target}</b>${S.seg==='d75'?'days':'sessions'}</div><div><b>${me().st + (S.seg==='d75'?53:12)}</b>best streak</div><div><b>${members().length}</b>in circle</div></div></div>
+    <div class="stats num"><div><b>${S.seg === 'd75' ? 75 : S.seg === 'coach' ? 28 : S.seg === 'fc' ? Math.round(fcc().days / 7 * fcc().target) : S.peer.weeks * S.peer.target}</b>${S.seg==='d75'?'days':'sessions'}</div><div><b>${me().st + (S.seg==='d75'?53:12)}</b>best streak</div><div><b>${poolCount()}</b>in circle</div></div></div>
   <button class="btn dark" data-act="copy" data-arg="${esc(shareText)}">${I.share} Copy share text</button>
   <div class="card" style="display:flex;flex-direction:column;gap:12px"><b>Start the next one</b>
-    <span class="small muted">Every finished challenge starts the next. ${S.seg === 'peer' ? 'Brian and Kevin want a rematch.' : 'Bring two friends and your next entry is 20% off.'}</span>
+    <span class="small muted">Every finished challenge starts the next. ${S.seg === 'peer' ? 'Brian and Kevin want a rematch.' : S.seg === 'fc' ? 'The next FitCircle Challenges open on Monday.' : 'Bring two friends and your next entry is 20% off.'}</span>
     <div class="row">${['Brian','Kevin','Mercy','Faith'].map(n => av(n, 32)).join('')}<span class="small muted">+ invite from contacts</span></div>
     <button class="btn" data-act="again">${I.plus} Start a new circle</button></div>`;
 };
@@ -1159,6 +1265,16 @@ function renderLayer() {
     <div class="flame">${I.flame}</div><div class="n num" data-count="${m.st}">${m.st}</div><b style="font-size:18px">day streak</b>
     <p>${S.seg === 'd75' ? `Day ${S.d75.day} done. ${75 - S.d75.day} to go.` : `${m.s} of ${target()} this week. ${m.s >= target() ? 'Weekly target hit.' : `${target() - m.s} more to hit your target.`}`} Your circle just got a notification.</p>
     <button class="btn" data-act="closeCelebrate">Back to the circle</button></div>`; }
+  if (sh.type === 'reveal') L.innerHTML = `<div class="scrim" data-act="closeSheet"><div class="sheet reveal" data-stop role="dialog" aria-label="${LAST_MONTH} jackpot winner"><div class="grab"></div>
+    <div class="rays"><span class="crownbig">👑</span></div>
+    <span class="lbl">🏆 ${LAST_MONTH} jackpot winner</span>
+    <h3>${LAST_WINNER.name}</h3>
+    <div class="sub2">Top performer on FitCircle in ${LAST_MONTH}, across every challenge</div>
+    <div class="prize"><span class="lbl">The prize</span><b>${JACKPOT.prize}</b><small>Paid for by ${JACKPOT.sponsor}, never from members' stakes</small></div>
+    <div class="rs num"><div><b>${LAST_WINNER.sessions}</b>sessions</div><div><b>${LAST_WINNER.streak}</b>day streak</div><div><b>#1</b>of ${fmt(LAST_WINNER.ranked)}</div></div>
+    <button class="btn goldbtn" data-act="copy" data-arg="${esc(`${LAST_WINNER.name} won FitCircle's ${LAST_MONTH} jackpot: ${LAST_WINNER.sessions} sessions and a ${LAST_WINNER.streak}-day streak. Prize: ${JACKPOT.prize}, from ${JACKPOT.sponsor}. The ${MONTH} race is on. Join a circle on FitCircle.`)}">${I.share} Share the result</button>
+    <p class="small" style="color:rgba(255,255,255,.7);margin:10px 0 4px">The ${MONTH} ranking started on the 1st. You're #4 so far.</p>
+    <button class="btn ghost" data-act="closeSheet">Close</button></div></div>`;
   if (sh.type === 'invite') L.innerHTML = `<div class="scrim" data-act="closeSheet"><div class="sheet" data-stop role="dialog" aria-label="Invite code"><div class="grab"></div>
     <b style="font-size:19px">Enter invite code</b><div class="field"><input id="f-code" value="FC-7Q2K" style="letter-spacing:.1em;font-weight:800;text-transform:uppercase" aria-label="Invite code"></div>
     <div class="card row">${av('Achieng')}<span class="grow small"><b>Achieng</b> invited you to <b>Ofisi Movers</b>. 5 people · 3 sessions a week · KES 500 stake.</span></div>
@@ -1174,7 +1290,7 @@ function renderRail() {
     $('steps').innerHTML = CSTEPS.map(([t, d, k], i) => `<li class="${S.screen === k ? 'on' : ''}"><button data-act="cstep" data-arg="${k}"><span class="n num">${i+1}</span><span class="t"><b>${t}</b><span>${d}</span></span></button></li>`).join('');
     return;
   }
-  $('segpick').innerHTML = Object.entries(SEG).map(([k, s]) => `<button data-act="railSeg" data-arg="${k}" aria-pressed="${S.seg===k}" style="--c:var(--${k});--c2:var(--${k === 'd75' ? 'd75b' : k + '2'})"><span class="dot"></span><strong>${s.short}</strong><span>${k==='peer'?'Group stakes':k==='coach'?'Paid programmes':'Your own rules'}</span></button>`).join('');
+  $('segpick').innerHTML = Object.entries(SEG).map(([k, s]) => `<button data-act="railSeg" data-arg="${k}" aria-pressed="${S.seg===k}" style="--c:var(--${k});--c2:var(--${k === 'd75' ? 'd75b' : k + '2'})"><span class="dot"></span><strong>${s.short}</strong><span>${k==='peer'?'Group stakes':k==='coach'?'Paid programmes':k==='fc'?'Open to all':'Your own rules'}</span></button>`).join('');
   const cur = STEP_OF[S.screen];
   $('steps').innerHTML = STEPS.map(([t, d], i) => `<li class="${i === cur ? 'on' : i < cur ? 'past' : ''}"><button data-act="step" data-arg="${i}"><span class="n num">${i+1}</span><span class="t"><b>${t}</b><span>${d}</span></span></button></li>`).join('');
 }
@@ -1207,7 +1323,8 @@ function confetti() {
 }
 
 // ---------- actions ----------
-const go = (s, push = true) => { if (push && S.screen !== s) S.hist.push(S.screen); S.screen = s; S.sheet = null; render(); };
+const go = (s, push = true) => { if (push && S.screen !== s) S.hist.push(S.screen); S.screen = s; S.sheet = null; render();
+  if (s === 'end') setTimeout(confetti, 700); }; // a challenge winner is crowned
 const A = {
   go: a => go(a),
   back: () => { S.screen = S.hist.pop() || 'welcome'; S.sheet = null; render(); },
@@ -1246,7 +1363,7 @@ const A = {
   railSeg: k => {
     S.seg = k; const st = STEP_OF[S.screen];
     if (st === 1) S.screen = setupScreen();
-    if (S.screen === 'coachDetail' && k !== 'coach') S.screen = setupScreen();
+    if ((S.screen === 'coachDetail' && k !== 'coach') || (S.screen === 'fcDetail' && k !== 'fc')) S.screen = setupScreen();
     render();
   },
   step: i => {
@@ -1261,6 +1378,8 @@ const A = {
   target: n => { S.peer.target = +n; render(false); },
   weeks: n => { S.peer.weeks = +n; render(false); },
   openCoach: id => { S.coachId = id; go('coachDetail'); },
+  openFc: id => { S.fcId = id; go('fcDetail'); },
+  reveal: () => { S.sheet = {type:'reveal'}; renderLayer(); confetti(); },
   mode: m => { S.d75.mode = m; S.d75.tasks = TASKS.filter(t => m === 'hard' ? t.h : t.s).map(t => t.id); render(false); },
   task: id => { const T = S.d75.tasks; T.includes(id) ? T.splice(T.indexOf(id), 1) : T.push(id); render(false); },
   dtask: id => { const T = S.d75.today; T.includes(id) ? T.splice(T.indexOf(id), 1) : T.push(id);
@@ -1287,7 +1406,7 @@ const A = {
   reason: r => { S.sheet.reason = r; renderLayer(); },
   flagConfirm: () => { const n = S.sheet.who; S.flagged[n] = 1; S.sheet = null; render(false); toast(`Flag sent. ${n}'s session is under review.`); },
   closeSheet: () => { S.sheet = null; renderLayer(); },
-  skipEnd: () => { S.role = 'member'; S.logged = true; S.hist = ['home']; go('end', false); if (staked() && S.seg !== 'coach') setTimeout(confetti, 900); },
+  skipEnd: () => { S.role = 'member'; S.logged = true; S.hist = ['home']; go('end', false); },
   copy: txt => { const done = () => toast('Copied to clipboard');
     try { navigator.clipboard.writeText(txt).then(done, () => toast(txt)); } catch (e) { toast(txt); } },
   trainer: () => { if (S.accepted?.coach) { S.role = 'coach'; S.seg = 'coach'; go('cVerify'); } else A.showTerms('coach'); },
@@ -1316,6 +1435,7 @@ document.addEventListener('click', e => {
   if (el.classList.contains('scrim') && e.target.closest('[data-stop]')) return;
   const f = A[el.dataset.act]; if (f) { e.preventDefault(); f(el.dataset.arg, el); }
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sheet && S.sheet.type !== 'pay') A.closeSheet(); });
 document.addEventListener('input', e => {
   const b = e.target.dataset.bind; if (!b) return;
   const [o, k] = b.split('.'); S[o][k] = e.target.value;
