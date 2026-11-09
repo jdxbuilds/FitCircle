@@ -73,7 +73,7 @@ echo "Leaderboard and dashboard"
 expect_value "Mercy rested on day 14 so her streak is 1" "SELECT current_streak FROM v_leaderboard WHERE challenge_id = 2 AND user_id = 8" "1"
 expect_value "logged today shows on leaderboard" "SELECT logged_today FROM v_leaderboard WHERE challenge_id = 2 AND user_id = 10" "1"
 expect_value "instructor share of fees (65% of 6,000)" "SELECT instructor_share FROM v_instructor_dashboard WHERE challenge_id = 2" "3900.00"
-expect_value "live 75-day Jackpot" "SELECT pool FROM v_jackpots WHERE challenge_id = 3" "4000.00"
+expect_value "live 75-day stake pool" "SELECT pool FROM v_stake_pools WHERE challenge_id = 3" "4000.00"
 
 echo "Flags"
 expect_error "you cannot flag your own proof" \
@@ -131,6 +131,9 @@ expect_value "running it again changes nothing" "CALL apply_removals(); SELECT C
 
 echo "Settlement"
 expect_error "cannot settle before the end" "CALL settle_challenge(3)" "not ended"
+run "INSERT INTO sponsors (id, name) VALUES (1, 'Paradise Lost');
+     UPDATE challenges SET sponsor_id = 1, jackpot_prize = 'Paradise Lost Full-Day Pass (2 pax)', jackpot_value = 7000 WHERE id = 1" >/dev/null
+expect_error "a jackpot needs a sponsor" "UPDATE challenges SET jackpot_prize = 'Spa day' WHERE id = 3" "ck_ch_jackpot"
 run "CALL settle_challenge(1)" >/dev/null
 expect_value "4 completed, 2 forfeited" "SELECT CONCAT(completers, '/', forfeiters) FROM settlements WHERE challenge_id = 1" "4/2"
 expect_value "1,000 forfeited: FitCircle 600 (60%), finishers share 400" "SELECT CONCAT(forfeited_amount, '|', fee_amount, '|', bonus_each) FROM settlements WHERE challenge_id = 1" "1000.00|600.00|100.00"
@@ -138,6 +141,33 @@ expect_value "each finisher gets stake 500 + 100 = 600" "SELECT GROUP_CONCAT(amo
 expect_value "Brian and Kevin forfeited" "SELECT GROUP_CONCAT(user_id ORDER BY user_id) FROM challenge_members WHERE challenge_id = 1 AND status = 'forfeited'" "4,6"
 expect_value "payouts + fee = pool" "SELECT SUM(p.amount) + s.fee_amount = s.gross_amount FROM payouts p JOIN settlements s ON s.challenge_id = p.challenge_id WHERE p.challenge_id = 1 GROUP BY s.challenge_id" "1"
 expect_error "a challenge settles only once" "CALL settle_challenge(1)" "Only an active challenge"
+expect_value "jackpot: 4 finishers level on sessions and streak, so a recorded draw picks one" \
+  "SELECT CONCAT(decided_by, '|', tied_with, '|', sessions, '|', user_id IN (1,2,3,5)) FROM jackpot_awards WHERE challenge_id = 1" "draw|3|12|1"
+expect_value "jackpot never goes to someone who did not finish" \
+  "SELECT COUNT(*) FROM jackpot_awards a JOIN challenge_members m ON m.challenge_id = a.challenge_id AND m.user_id = a.user_id WHERE m.status <> 'completed'" "0"
+expect_value "jackpot winner is told" \
+  "SELECT COUNT(*) FROM notifications n JOIN jackpot_awards a ON a.user_id = n.user_id AND a.challenge_id = 1 WHERE n.title = 'You won the jackpot'" "1"
+expect_value "jackpot adds no money to payouts" "SELECT SUM(amount) FROM payouts WHERE challenge_id = 1 AND kind = 'jackpot'" "2400.00"
+
+echo "Jackpot tie-breaks"
+run "SET @fitcircle_backfill = 1;
+     INSERT INTO challenges (id, type, title, created_by, status, start_date, duration_days, sessions_per_week, invite_code, sponsor_id, jackpot_prize)
+       VALUES (60,'peer','Most sessions',1,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,'FC-J1',1,'Spa day'),
+              (61,'peer','Streak decides',1,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,'FC-J2',1,'Gym month'),
+              (62,'peer','Nobody finishes',1,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,'FC-J3',1,'Yoga class');
+     INSERT INTO challenge_members (challenge_id, user_id) VALUES (60,1),(60,2),(61,1),(61,2),(62,1);
+     CALL start_challenge(60); CALL start_challenge(61); CALL start_challenge(62);
+     INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type)
+       SELECT c, u, CURDATE() - INTERVAL d DAY, TIMESTAMP(CURDATE() - INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
+       FROM (SELECT 60 c, 1 u, 7 d UNION ALL SELECT 60,1,5 UNION ALL SELECT 60,1,3   -- user 1: 3 sessions
+             UNION ALL SELECT 60,2,7 UNION ALL SELECT 60,2,5                          -- user 2: 2 sessions
+             UNION ALL SELECT 61,1,7 UNION ALL SELECT 61,1,5 UNION ALL SELECT 61,1,3  -- user 1: 3 sessions, no streak
+             UNION ALL SELECT 61,2,7 UNION ALL SELECT 61,2,6 UNION ALL SELECT 61,2,5  -- user 2: 3 sessions, 3 days in a row
+             UNION ALL SELECT 62,1,7) x;
+     CALL settle_challenge(60); CALL settle_challenge(61); CALL settle_challenge(62);" >/dev/null
+expect_value "most sessions wins outright" "SELECT CONCAT(user_id, '|', decided_by) FROM jackpot_awards WHERE challenge_id = 60" "1|sessions"
+expect_value "level on sessions: longest streak wins" "SELECT CONCAT(user_id, '|', decided_by, '|', best_streak) FROM jackpot_awards WHERE challenge_id = 61" "2|streak|3"
+expect_value "nobody finished: no jackpot winner" "SELECT COUNT(*) FROM jackpot_awards WHERE challenge_id = 62" "0"
 
 echo "Rounding"
 run "SET @fitcircle_backfill = 1;

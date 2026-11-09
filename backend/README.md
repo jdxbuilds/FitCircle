@@ -76,7 +76,7 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 | `GET /challenges/mine` · `GET /challenges/discover` | My challenges · open instructor programmes |
 | `GET /invites/:code` · `POST /challenges/join {inviteCode}` | Preview and join a group |
 | `POST /challenges/:id/join` | Join an instructor programme |
-| `GET /challenges/:id` | Details, live Jackpot, tasks, settlement, what I still need to do |
+| `GET /challenges/:id` | Details, live stake pool, sponsored jackpot and its winner, tasks, settlement, what I still need to do |
 | `POST /challenges/:id/leave` | Before the start only; paid stakes are refunded |
 | `POST /challenges/:id/start` | Host starts early (otherwise the daily job does it on the start date) |
 | `GET /challenges/:id/members` | |
@@ -118,6 +118,9 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 | `GET /admin/instructors?verification=pending` | Applications with document links |
 | `POST /admin/instructor-documents/:id/review` · `POST /admin/instructors/:id/decision` | Approve documents, then verify |
 | `GET /admin/flags` · `GET /admin/users/under-review` · `POST /admin/users/:id/status` | Trust and safety |
+| `POST /admin/sponsors` · `GET /admin/sponsors` | Sponsors who pay for jackpot prizes |
+| `PUT /admin/challenges/:id/jackpot {sponsorId, prize, valueKes}` | Attach a sponsor's prize to an open challenge |
+| `GET /admin/jackpots` · `POST /admin/jackpots/:challengeId/fulfilled` | Winners, and marking a prize as delivered |
 | `POST /admin/challenges/:id/settle` | Settle by hand (normally the daily job does it) |
 
 ## Scheduled jobs

@@ -19,6 +19,8 @@
 --   * Finishers get their full stake back plus 40% of forfeited stakes (peer groups)
 --   * Forfeits: FitCircle keeps 60% in peer and instructor challenges, 100% in 75 Hard/Soft
 --   * Instructor-led fees from finishers: instructor 65%, FitCircle 35%
+--   * Jackpot = a prize paid for by a sponsor (never members' money); one winner, the top
+--     finisher: most sessions, then longest streak, then a recorded random draw
 -- =====================================================================
 
 CREATE DATABASE IF NOT EXISTS fitcircle
@@ -87,6 +89,17 @@ CREATE TABLE user_goals (
   goal     ENUM('lose_weight','build_strength','run_10k','consistency','mental_toughness','feel_better') NOT NULL,
   PRIMARY KEY (user_id, goal),
   CONSTRAINT fk_goals_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Sponsors pay for jackpot prizes (e.g. a day pass at a wellness venue)
+CREATE TABLE sponsors (
+  id             BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name           VARCHAR(160) NOT NULL,
+  contact_name   VARCHAR(120),
+  contact_phone  VARCHAR(20),
+  contact_email  VARCHAR(255),
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_sponsor_name (name)
 ) ENGINE=InnoDB;
 
 -- Corporate wellness (B2B team licensing)
@@ -162,6 +175,9 @@ CREATE TABLE challenges (
   forfeit_pct        DECIMAL(5,2) NOT NULL,                 -- FitCircle's cut of forfeited money (60, or 100 for 75-day)
   capacity           INT UNSIGNED,
   invite_code        VARCHAR(12) NOT NULL,
+  sponsor_id         BIGINT UNSIGNED,                       -- jackpot sponsor (optional)
+  jackpot_prize      VARCHAR(200),                          -- e.g. 'Paradise Lost Full-Day Pass (2 pax)'
+  jackpot_value      DECIMAL(12,2),                         -- retail value in KES, for records
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_challenge_invite (invite_code),
@@ -170,6 +186,7 @@ CREATE TABLE challenges (
   CONSTRAINT fk_ch_creator    FOREIGN KEY (created_by)      REFERENCES users(id),
   CONSTRAINT fk_ch_instructor FOREIGN KEY (instructor_id)   REFERENCES instructor_profiles(user_id),
   CONSTRAINT fk_ch_org        FOREIGN KEY (organization_id) REFERENCES organizations(id),
+  CONSTRAINT fk_ch_sponsor    FOREIGN KEY (sponsor_id)      REFERENCES sponsors(id),
   CONSTRAINT ck_ch_sessions   CHECK (sessions_per_week BETWEEN 2 AND 7),
   CONSTRAINT ck_ch_fee_pct    CHECK (fee_pct BETWEEN 0 AND 100),
   CONSTRAINT ck_ch_forfeit_pct CHECK (forfeit_pct BETWEEN 0 AND 100),
@@ -182,7 +199,8 @@ CREATE TABLE challenges (
   CONSTRAINT ck_ch_stake      CHECK (
        (is_staked = TRUE  AND stake_amount > 0)
     OR (is_staked = FALSE AND stake_amount IS NULL)),
-  CONSTRAINT ck_ch_mode75     CHECK ((type = 'custom75') = (mode_75 IS NOT NULL))
+  CONSTRAINT ck_ch_mode75     CHECK ((type = 'custom75') = (mode_75 IS NOT NULL)),
+  CONSTRAINT ck_ch_jackpot    CHECK ((sponsor_id IS NULL) = (jackpot_prize IS NULL))
 ) ENGINE=InnoDB;
 
 -- Daily tasks for custom 75-day challenges (workout, water, reading, photo...)
@@ -354,6 +372,23 @@ CREATE TABLE settlements (
   amount_each      DECIMAL(12,2),                   -- each finisher receives: stake + bonus (pools)
   settled_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_set_ch FOREIGN KEY (challenge_id) REFERENCES challenges(id)
+) ENGINE=InnoDB;
+
+-- One jackpot winner per challenge: the top finisher
+CREATE TABLE jackpot_awards (
+  challenge_id   BIGINT UNSIGNED PRIMARY KEY,
+  user_id        BIGINT UNSIGNED NOT NULL,
+  sponsor_id     BIGINT UNSIGNED NOT NULL,
+  prize          VARCHAR(200) NOT NULL,
+  sessions       INT UNSIGNED NOT NULL,             -- counted sessions in the challenge
+  best_streak    INT UNSIGNED NOT NULL,
+  decided_by     ENUM('sessions','streak','draw') NOT NULL,  -- what separated the winner
+  tied_with      INT UNSIGNED NOT NULL DEFAULT 0,   -- others level on sessions and streak (draw only)
+  awarded_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fulfilled_at   DATETIME,                          -- when the sponsor delivered the prize
+  CONSTRAINT fk_ja_ch      FOREIGN KEY (challenge_id) REFERENCES challenges(id),
+  CONSTRAINT fk_ja_user    FOREIGN KEY (user_id)      REFERENCES users(id),
+  CONSTRAINT fk_ja_sponsor FOREIGN KEY (sponsor_id)   REFERENCES sponsors(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE payouts (
@@ -608,8 +643,8 @@ SELECT m.challenge_id, m.user_id, u.first_name,
   LEFT JOIN v_member_streaks s ON s.challenge_id = m.challenge_id AND s.user_id = m.user_id
  WHERE m.status = 'active';
 
--- Live Jackpot per staked challenge
-CREATE VIEW v_jackpots AS
+-- Live stake pool per staked challenge (members' money; separate from sponsored jackpots)
+CREATE VIEW v_stake_pools AS
 SELECT c.id AS challenge_id, c.title, c.type, c.forfeit_pct,
        COUNT(m.user_id) AS stakers,
        COALESCE(SUM(m.amount_paid), 0) AS pool,
@@ -749,12 +784,15 @@ BEGIN
   DECLARE v_finished DECIMAL(12,2) DEFAULT 0; DECLARE v_fee DECIMAL(12,2) DEFAULT 0;
   DECLARE v_bonus DECIMAL(12,2); DECLARE v_each DECIMAL(12,2); DECLARE v_share DECIMAL(12,2);
   DECLARE v_done INT DEFAULT 0; DECLARE v_total INT DEFAULT 0;
+  DECLARE v_sponsor BIGINT UNSIGNED; DECLARE v_prize VARCHAR(200);
+  DECLARE v_winner BIGINT UNSIGNED; DECLARE v_w_sessions INT; DECLARE v_w_streak INT; DECLARE v_level INT;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
 
   START TRANSACTION;
   SELECT type, status, start_date, end_date, duration_days, sessions_per_week, is_staked, fee_pct, forfeit_pct,
-         instructor_id, stake_amount
-    INTO v_type, v_status, v_start, v_end, v_days, v_spw, v_staked, v_fee_pct, v_forfeit_pct, v_instructor, v_stake
+         instructor_id, stake_amount, sponsor_id, jackpot_prize
+    INTO v_type, v_status, v_start, v_end, v_days, v_spw, v_staked, v_fee_pct, v_forfeit_pct, v_instructor, v_stake,
+         v_sponsor, v_prize
     FROM challenges WHERE id = p_challenge_id FOR UPDATE;
 
   IF v_status IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Challenge not found'; END IF;
@@ -819,6 +857,34 @@ BEGIN
                            completers, forfeiters, bonus_each, amount_each)
   VALUES (p_challenge_id, v_gross, v_fee_pct, v_forfeit_pct, v_forfeited, v_fee,
           v_done, v_total - v_done, v_bonus, v_each);
+
+  -- Jackpot: one winner among the finishers. Most counted sessions, then longest streak, then a random draw.
+  IF v_sponsor IS NOT NULL AND v_done > 0 THEN
+    DROP TEMPORARY TABLE IF EXISTS tmp_rank;
+    CREATE TEMPORARY TABLE tmp_rank AS
+      SELECT m.user_id,
+             (SELECT COUNT(*) FROM session_logs l WHERE l.challenge_id = p_challenge_id AND l.user_id = m.user_id AND l.status = 'counted') AS sessions,
+             COALESCE((SELECT s.best_streak FROM v_member_streaks s WHERE s.challenge_id = p_challenge_id AND s.user_id = m.user_id), 0) AS streak,
+             RAND() AS draw
+        FROM challenge_members m WHERE m.challenge_id = p_challenge_id AND m.status = 'completed';
+    SELECT user_id, sessions, streak INTO v_winner, v_w_sessions, v_w_streak
+      FROM tmp_rank ORDER BY sessions DESC, streak DESC, draw LIMIT 1;
+    SELECT COUNT(*) INTO v_level FROM tmp_rank WHERE sessions = v_w_sessions;
+    IF v_level = 1 THEN
+      INSERT INTO jackpot_awards (challenge_id, user_id, sponsor_id, prize, sessions, best_streak, decided_by)
+      VALUES (p_challenge_id, v_winner, v_sponsor, v_prize, v_w_sessions, v_w_streak, 'sessions');
+    ELSE
+      SELECT COUNT(*) INTO v_level FROM tmp_rank WHERE sessions = v_w_sessions AND streak = v_w_streak;
+      INSERT INTO jackpot_awards (challenge_id, user_id, sponsor_id, prize, sessions, best_streak, decided_by, tied_with)
+      VALUES (p_challenge_id, v_winner, v_sponsor, v_prize, v_w_sessions, v_w_streak,
+              IF(v_level = 1, 'streak', 'draw'), IF(v_level = 1, 0, v_level - 1));
+    END IF;
+    INSERT INTO notifications (user_id, type, title, body, data)
+    VALUES (v_winner, 'challenge_settled', 'You won the jackpot',
+            CONCAT('You were the top performer. Your prize: ', v_prize, '.'),
+            JSON_OBJECT('challenge_id', p_challenge_id, 'jackpot', TRUE));
+    DROP TEMPORARY TABLE IF EXISTS tmp_rank;
+  END IF;
 
   UPDATE challenges SET status = 'settled' WHERE id = p_challenge_id;
 

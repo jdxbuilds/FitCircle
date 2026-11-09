@@ -36,7 +36,7 @@ nobody joins or withdraws after the start · only verified instructors host · n
 - `CALL start_challenge(id)` locks stakes and removes anyone who hasn't paid.
 - `CALL apply_removals()` removes anyone who missed 3 sessions in a week, or 3 days of a 75-day challenge (run daily).
 - `CALL settle_challenge(id)` marks who completed, returns finishers' stakes plus their share of forfeits, and creates payouts.
-- Read screens from `v_leaderboard`, `v_jackpots`, `v_instructor_dashboard`, `v_member_streaks`.
+- Read screens from `v_leaderboard`, `v_stake_pools`, `v_instructor_dashboard`, `v_member_streaks`.
 
 ## Notes
 

@@ -48,7 +48,7 @@ export async function completePayment(ctx: Ctx, paymentId: number, providerRef: 
     }
     const title = p.kind === 'stake' ? 'Stake locked' : "You're in";
     const body = p.kind === 'stake'
-      ? `KES ${p.amount} is in the Jackpot. The only way to get it back is to show up.`
+      ? `KES ${p.amount} is locked in the stake pool. Finish the challenge to get it back.`
       : 'Your entry fee is paid. Your coach will send the first plan on day one.';
     await notify(ctx.db, p.user_id, 'stake_locked', title, body, { challengeId: p.challenge_id, paymentId });
   }
