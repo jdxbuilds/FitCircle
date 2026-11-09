@@ -47,8 +47,8 @@ INSERT INTO platform_settings (setting_key, setting_value, description) VALUES
   ('min_age_stake',       '18', 'Minimum age to join a staked challenge'),
   ('open_flags_review',   '3',  'Open flags on a user that trigger an account review'),
   ('default_currency',    'KES','Currency for stakes, fees and payouts'),
-  ('terms_version_member',     '2026-11-08.v1', 'Member terms version people must accept to sign up'),
-  ('terms_version_instructor', '2026-11-08.v1', 'Instructor terms version instructors must accept to apply');
+  ('terms_version_member',     '2026-11-09.v2', 'Member terms version people must accept to sign up'),
+  ('terms_version_instructor', '2026-11-09.v2', 'Instructor terms version instructors must accept to apply');
 
 -- ---------------------------------------------------------------------
 -- People
