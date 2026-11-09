@@ -76,7 +76,8 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 | `GET /challenges/mine` · `GET /challenges/discover` | My challenges · open instructor programmes |
 | `GET /invites/:code` · `POST /challenges/join {inviteCode}` | Preview and join a group |
 | `POST /challenges/:id/join` | Join an instructor programme |
-| `GET /challenges/:id` | Details, live stake pool, sponsored jackpot and its winner, tasks, settlement, what I still need to do |
+| `GET /jackpot` | This month's sponsored jackpot, the top 10, my rank, when it resets (the 1st) and past winners |
+| `GET /challenges/:id` | Details, live stake pool, tasks, settlement, what I still need to do |
 | `POST /challenges/:id/leave` | Before the start only; paid stakes are refunded |
 | `POST /challenges/:id/start` | Host starts early (otherwise the daily job does it on the start date) |
 | `GET /challenges/:id/members` | |
@@ -119,15 +120,16 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 | `POST /admin/instructor-documents/:id/review` · `POST /admin/instructors/:id/decision` | Approve documents, then verify |
 | `GET /admin/flags` · `GET /admin/users/under-review` · `POST /admin/users/:id/status` | Trust and safety |
 | `POST /admin/sponsors` · `GET /admin/sponsors` | Sponsors who pay for jackpot prizes |
-| `PUT /admin/challenges/:id/jackpot {sponsorId, prize, valueKes}` | Attach a sponsor's prize to an open challenge |
-| `GET /admin/jackpots` · `POST /admin/jackpots/:challengeId/fulfilled` | Winners, and marking a prize as delivered |
+| `PUT /admin/jackpots/:month {sponsorId, prize, valueKes}` | Set a month's jackpot (`:month` is `YYYY-MM`) |
+| `GET /admin/jackpots` · `POST /admin/jackpots/:month/fulfilled` | Prizes and winners by month, and marking a prize as delivered |
+| `POST /admin/jackpots/:month/award` | Award a finished month by hand (the daily job does this on the 1st) |
 | `POST /admin/challenges/:id/settle` | Settle by hand (normally the daily job does it) |
 
 ## Scheduled jobs
 
 `node dist/jobs.js <job>`. On AWS these run on a schedule, at Nairobi times:
 
-- `daily` (00:05): start challenges whose start date has come, remove members who missed too many sessions, settle ended challenges, send due payouts.
+- `daily` (00:05): start challenges whose start date has come, remove members who missed too many sessions, settle ended challenges, award last month's jackpot (on the 1st), send due payouts.
 - `morning` (06:30): reminder to everyone in a running challenge.
 - `evening` (19:00): reminder to anyone who hasn't logged yet.
 

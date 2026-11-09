@@ -883,11 +883,11 @@ body {
       <div class="section-title">🏆 Jackpot</div>
       <div class="section-link">How it works</div>
     </div>
-    <div class="prize-banner" id="prizeBanner" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Reveal the jackpot winner">
+    <div class="prize-banner" id="prizeBanner" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Reveal last month's jackpot winner">
       <div class="prize-top">
         <div class="prize-crown">🌴</div>
         <div>
-          <div class="prize-label">Jackpot · Paid for by sponsor</div>
+          <div class="prize-label">Monthly jackpot · Paid for by sponsor</div>
           <div class="prize-name">Paradise Lost<br>Full-Day Pass (2 pax)</div>
         </div>
       </div>
@@ -896,9 +896,9 @@ body {
           <div class="sponsor-logo">PL</div>
           <span>Sponsored by Paradise Lost</span>
         </div>
-        <div class="prize-rank">🥇 1 winner: top performer</div>
+        <div class="prize-rank">🥇 1 winner a month · resets on the 1st</div>
       </div>
-      <div class="prize-tap">Tap to reveal the winner</div>
+      <div class="prize-tap">Tap to reveal October's winner</div>
     </div>
 
     <!-- Leaderboard -->
@@ -1021,7 +1021,7 @@ body {
       </div>
     </div>
 
-    <div class="intro-hint">Tap the prize banner to reveal the winner, or try "Log Today's Workout" and "Join a New Challenge". <span id="jackpotTrigger" role="button" tabindex="0" style="color:var(--gold);font-weight:600;cursor:pointer;text-decoration:underline">🏆 Replay winner reveal</span></div>
+    <div class="intro-hint">Tap the prize banner to reveal last month's winner, or try "Log Today's Workout" and "Join a New Challenge". <span id="jackpotTrigger" role="button" tabindex="0" style="color:var(--gold);font-weight:600;cursor:pointer;text-decoration:underline">🏆 Replay winner reveal</span></div>
 
     <!-- Bottom nav -->
     <div class="bottom-nav">
@@ -1104,33 +1104,33 @@ body {
         <span class="sparkle">⭐</span>
         <span class="jackpot-crown">👑</span>
       </div>
-      <div class="jackpot-winner-label">🏆 Top Performer · Jackpot Winner</div>
+      <div class="jackpot-winner-label">🏆 October Jackpot Winner</div>
       <div class="jackpot-winner-name" id="jackpotWinnerName">Amara Njeri</div>
-      <div class="jackpot-winner-sub">30-Day Morning Move · 100% check-ins · 30-day streak</div>
+      <div class="jackpot-winner-sub">Top performer on FitCircle in October · 31 sessions · 24-day streak</div>
 
       <div class="jackpot-prize-box">
         <span class="jackpot-prize-icon">🌴</span>
-        <div class="jackpot-prize-label">Jackpot</div>
+        <div class="jackpot-prize-label">October Jackpot</div>
         <div class="jackpot-prize-name">Paradise Lost<br>Full-Day Pass (2 pax)</div>
         <div class="jackpot-sponsor-row">
           <div class="jackpot-sponsor-logo">PL</div>
           <span>Paid for by Paradise Lost</span>
         </div>
-        <div class="jackpot-prize-note">Jackpots are paid for by our health and wellness sponsors, such as day passes, spa treatments and gym memberships. They never come from members' stakes. There is one winner per challenge: the top performer.</div>
+        <div class="jackpot-prize-note">Jackpots are paid for by our health and wellness sponsors, such as day passes, spa treatments and gym memberships. They never come from members' stakes. There is one winner a month across all of FitCircle: the top performer. The ranking resets on the 1st.</div>
       </div>
 
       <div class="jackpot-pool-row">
         <div class="jackpot-pool-box">
-          <div class="jackpot-pool-num"><span class="cur">KES</span>11,500</div>
-          <div class="jackpot-pool-label">Stake Pool</div>
+          <div class="jackpot-pool-num"><span class="cur">&nbsp;</span>31</div>
+          <div class="jackpot-pool-label">Sessions</div>
         </div>
         <div class="jackpot-pool-box">
-          <div class="jackpot-pool-num"><span class="cur">KES</span>718</div>
-          <div class="jackpot-pool-label">Stake Payout</div>
+          <div class="jackpot-pool-num"><span class="cur">days</span>24</div>
+          <div class="jackpot-pool-label">Best Streak</div>
         </div>
         <div class="jackpot-pool-box">
-          <div class="jackpot-pool-num"><span class="cur">&nbsp;</span>16/23</div>
-          <div class="jackpot-pool-label">Finished</div>
+          <div class="jackpot-pool-num"><span class="cur">of 1,240</span>#1</div>
+          <div class="jackpot-pool-label">Ranked</div>
         </div>
       </div>
 
@@ -1208,8 +1208,8 @@ const prizeBanner    = document.getElementById('prizeBanner');
 const jackpotTrigger = document.getElementById('jackpotTrigger');
 const confettiCanvas = document.getElementById('jackpotConfetti');
 const reduceMotion   = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const SHARE_TEXT = 'Amara Njeri won the 30-Day Morning Move on FitCircle with 100% check-ins and a 30-day streak. ' +
-  'Jackpot: Paradise Lost Full-Day Pass (2 pax), paid for by Paradise Lost. 16 of 23 finished. Join the next circle on FitCircle.';
+const SHARE_TEXT = 'Amara Njeri is FitCircle\'s October jackpot winner: top performer of the month with 31 sessions and a 24-day streak. ' +
+  'Prize: Paradise Lost Full-Day Pass (2 pax), paid for by Paradise Lost. The ranking resets on the 1st. Join a circle on FitCircle.';
 let lastFocus = null;
 let confettiFrame = 0;
 

@@ -17,7 +17,7 @@ Every push runs the database rule checks, the API tests and the AWS template bui
 - **Instructor Challenges:** verified coaches, paid 1–12 week programmes. Finishers' fees: instructor 65%, FitCircle 35%. Removed members' fees: FitCircle 60%, instructor 40%
 - **Custom 75-Day:** build your own 75 Hard / 75 Soft with daily tasks. Miss 3 days and you're out: FitCircle keeps 100% of your stake; finishers get their stake back
 
-Any challenge can also carry a **jackpot**: a prize paid for by a sponsor (for example a Paradise Lost day pass), never from members' stakes. There is one winner, the top performer: most sessions, then longest streak, then a random draw.
+Every month there is one FitCircle-wide **jackpot**: a prize paid for by a sponsor (for example a Paradise Lost day pass), never from members' stakes. There is one winner, the top performer across all challenges that calendar month: most sessions, then longest streak, then a random draw. The ranking resets on the 1st of every month.
 
 ## Prototype
 

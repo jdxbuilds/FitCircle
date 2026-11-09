@@ -131,43 +131,52 @@ expect_value "running it again changes nothing" "CALL apply_removals(); SELECT C
 
 echo "Settlement"
 expect_error "cannot settle before the end" "CALL settle_challenge(3)" "not ended"
-run "INSERT INTO sponsors (id, name) VALUES (1, 'Paradise Lost');
-     UPDATE challenges SET sponsor_id = 1, jackpot_prize = 'Paradise Lost Full-Day Pass (2 pax)', jackpot_value = 7000 WHERE id = 1" >/dev/null
-expect_error "a jackpot needs a sponsor" "UPDATE challenges SET jackpot_prize = 'Spa day' WHERE id = 3" "ck_ch_jackpot"
 run "CALL settle_challenge(1)" >/dev/null
 expect_value "4 completed, 2 forfeited" "SELECT CONCAT(completers, '/', forfeiters) FROM settlements WHERE challenge_id = 1" "4/2"
 expect_value "1,000 forfeited: FitCircle 600 (60%), finishers share 400" "SELECT CONCAT(forfeited_amount, '|', fee_amount, '|', bonus_each) FROM settlements WHERE challenge_id = 1" "1000.00|600.00|100.00"
-expect_value "each finisher gets stake 500 + 100 = 600" "SELECT GROUP_CONCAT(amount ORDER BY user_id) FROM payouts WHERE challenge_id = 1 AND kind = 'jackpot'" "600.00,600.00,600.00,600.00"
+expect_value "each finisher gets stake 500 + 100 = 600" "SELECT GROUP_CONCAT(amount ORDER BY user_id) FROM payouts WHERE challenge_id = 1 AND kind = 'stake_payout'" "600.00,600.00,600.00,600.00"
 expect_value "Brian and Kevin forfeited" "SELECT GROUP_CONCAT(user_id ORDER BY user_id) FROM challenge_members WHERE challenge_id = 1 AND status = 'forfeited'" "4,6"
 expect_value "payouts + fee = pool" "SELECT SUM(p.amount) + s.fee_amount = s.gross_amount FROM payouts p JOIN settlements s ON s.challenge_id = p.challenge_id WHERE p.challenge_id = 1 GROUP BY s.challenge_id" "1"
 expect_error "a challenge settles only once" "CALL settle_challenge(1)" "Only an active challenge"
-expect_value "jackpot: 4 finishers level on sessions and streak, so a recorded draw picks one" \
-  "SELECT CONCAT(decided_by, '|', tied_with, '|', sessions, '|', user_id IN (1,2,3,5)) FROM jackpot_awards WHERE challenge_id = 1" "draw|3|12|1"
-expect_value "jackpot never goes to someone who did not finish" \
-  "SELECT COUNT(*) FROM jackpot_awards a JOIN challenge_members m ON m.challenge_id = a.challenge_id AND m.user_id = a.user_id WHERE m.status <> 'completed'" "0"
-expect_value "jackpot winner is told" \
-  "SELECT COUNT(*) FROM notifications n JOIN jackpot_awards a ON a.user_id = n.user_id AND a.challenge_id = 1 WHERE n.title = 'You won the jackpot'" "1"
-expect_value "jackpot adds no money to payouts" "SELECT SUM(amount) FROM payouts WHERE challenge_id = 1 AND kind = 'jackpot'" "2400.00"
 
-echo "Jackpot tie-breaks"
+echo "Monthly jackpot"
 run "SET @fitcircle_backfill = 1;
-     INSERT INTO challenges (id, type, title, created_by, status, start_date, duration_days, sessions_per_week, invite_code, sponsor_id, jackpot_prize)
-       VALUES (60,'peer','Most sessions',1,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,'FC-J1',1,'Spa day'),
-              (61,'peer','Streak decides',1,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,'FC-J2',1,'Gym month'),
-              (62,'peer','Nobody finishes',1,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,'FC-J3',1,'Yoga class');
-     INSERT INTO challenge_members (challenge_id, user_id) VALUES (60,1),(60,2),(61,1),(61,2),(62,1);
-     CALL start_challenge(60); CALL start_challenge(61); CALL start_challenge(62);
+     SET @m1 = DATE_FORMAT(CURDATE() - INTERVAL 6 MONTH, '%Y-%m-01'), @m2 = DATE_FORMAT(CURDATE() - INTERVAL 7 MONTH, '%Y-%m-01');
+     INSERT INTO sponsors (id, name) VALUES (1, 'Paradise Lost');
+     INSERT INTO monthly_jackpots (month, sponsor_id, prize, prize_value) VALUES (@m1, 1, 'Paradise Lost Full-Day Pass (2 pax)', 7000), (@m2, 1, 'Spa day', 5000);
+     INSERT INTO challenges (id, type, title, created_by, status, start_date, duration_days, sessions_per_week, invite_code) VALUES
+       (70,'peer','Last month A',1,'enrolling',@m1,28,2,'FC-M1'), (71,'peer','Last month B',1,'enrolling',@m1,28,2,'FC-M2'),
+       (72,'peer','Two months ago',1,'enrolling',@m2,28,2,'FC-M3');
+     INSERT INTO challenge_members (challenge_id, user_id) VALUES (70,1),(70,2),(70,3),(71,1),(72,1),(72,2);
+     CALL start_challenge(70); CALL start_challenge(71); CALL start_challenge(72);
      INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type)
-       SELECT c, u, CURDATE() - INTERVAL d DAY, TIMESTAMP(CURDATE() - INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
-       FROM (SELECT 60 c, 1 u, 7 d UNION ALL SELECT 60,1,5 UNION ALL SELECT 60,1,3   -- user 1: 3 sessions
-             UNION ALL SELECT 60,2,7 UNION ALL SELECT 60,2,5                          -- user 2: 2 sessions
-             UNION ALL SELECT 61,1,7 UNION ALL SELECT 61,1,5 UNION ALL SELECT 61,1,3  -- user 1: 3 sessions, no streak
-             UNION ALL SELECT 61,2,7 UNION ALL SELECT 61,2,6 UNION ALL SELECT 61,2,5  -- user 2: 3 sessions, 3 days in a row
-             UNION ALL SELECT 62,1,7) x;
-     CALL settle_challenge(60); CALL settle_challenge(61); CALL settle_challenge(62);" >/dev/null
-expect_value "most sessions wins outright" "SELECT CONCAT(user_id, '|', decided_by) FROM jackpot_awards WHERE challenge_id = 60" "1|sessions"
-expect_value "level on sessions: longest streak wins" "SELECT CONCAT(user_id, '|', decided_by, '|', best_streak) FROM jackpot_awards WHERE challenge_id = 61" "2|streak|3"
-expect_value "nobody finished: no jackpot winner" "SELECT COUNT(*) FROM jackpot_awards WHERE challenge_id = 62" "0"
+       WITH RECURSIVE n(d) AS (SELECT 0 UNION ALL SELECT d + 1 FROM n WHERE d < 19)
+       SELECT x.c, x.u, c.start_date + INTERVAL n.d DAY, TIMESTAMP(c.start_date + INTERVAL n.d DAY, '07:00'), 'x.jpg', 'photo'
+         FROM n JOIN (SELECT 70 c, 1 u, 0 lo, 5 hi UNION ALL SELECT 71, 1, 10, 13   -- user 1: 6 + 4 = 10 sessions in two challenges, best streak 6
+                      UNION ALL SELECT 70, 2, 0, 9                                  -- user 2: 10 sessions, streak 10
+                      UNION ALL SELECT 70, 3, 0, 19) x ON n.d BETWEEN x.lo AND x.hi  -- user 3: 20 sessions, then suspended
+         JOIN challenges c ON c.id = x.c;
+     INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type)
+       SELECT 72, u, @m2 + INTERVAL d DAY, TIMESTAMP(@m2 + INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
+         FROM (SELECT 1 u UNION ALL SELECT 2) a, (SELECT 0 d UNION ALL SELECT 2) b;     -- users 1 and 2 exactly level
+     SET @fitcircle_backfill = 0;
+     UPDATE users SET status = 'suspended' WHERE id = 3;
+     CALL award_monthly_jackpot(@m1); CALL award_monthly_jackpot(@m2);
+     UPDATE users SET status = 'active' WHERE id = 3;" >/dev/null
+expect_value "sessions count across all challenges; level on 10, the longer streak wins" \
+  "SELECT CONCAT(user_id, '|', sessions, '|', best_streak, '|', decided_by) FROM jackpot_awards WHERE month = DATE_FORMAT(CURDATE() - INTERVAL 6 MONTH, '%Y-%m-01')" "2|10|10|streak"
+expect_value "suspended accounts cannot win, even with the most sessions" \
+  "SELECT COUNT(*) FROM jackpot_awards WHERE user_id = 3" "0"
+expect_value "exactly level: a recorded random draw picks one" \
+  "SELECT CONCAT(decided_by, '|', tied_with, '|', user_id IN (1,2)) FROM jackpot_awards WHERE month = DATE_FORMAT(CURDATE() - INTERVAL 7 MONTH, '%Y-%m-01')" "draw|1|1"
+expect_value "the winner is told" \
+  "SELECT COUNT(*) FROM notifications WHERE user_id = 2 AND title LIKE 'You won the % jackpot' AND JSON_EXTRACT(data, '$.jackpotMonth') = DATE_FORMAT(CURDATE() - INTERVAL 6 MONTH, '%Y-%m')" "1"
+expect_error "a month is awarded only once" "CALL award_monthly_jackpot(CURDATE() - INTERVAL 6 MONTH)" "already been awarded"
+run "INSERT INTO monthly_jackpots (month, sponsor_id, prize) VALUES (DATE_FORMAT(CURDATE(), '%Y-%m-01'), 1, 'Gym month')" >/dev/null
+expect_error "the current month cannot be awarded until it ends" "CALL award_monthly_jackpot(CURDATE())" "not ended"
+expect_error "jackpot month must be the 1st" "INSERT INTO monthly_jackpots (month, sponsor_id, prize) VALUES ('2030-01-15', 1, 'X')" "ck_mj_first"
+expect_value "live leaderboard only counts this month" \
+  "SELECT COUNT(*) FROM v_jackpot_leaderboard WHERE sessions > 0 AND user_id = 3" "$(run "SELECT IF(COUNT(*) > 0, 1, 0) FROM session_logs WHERE user_id = 3 AND status = 'counted' AND log_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')")"
 
 echo "Rounding"
 run "SET @fitcircle_backfill = 1;

@@ -161,16 +161,6 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
          LEFT JOIN v_stake_pools j ON j.challenge_id = c.id WHERE c.id = ?`,
       [id],
     );
-    // Jackpot: a sponsor's prize, one winner (the top finisher)
-    const jackpot = await one(
-      ctx.db,
-      `SELECT c.jackpot_prize AS prize, s.name AS sponsor, a.user_id AS winnerId, u.first_name AS winnerName,
-              a.sessions, a.best_streak AS bestStreak, a.decided_by AS decidedBy, a.awarded_at AS awardedAt
-         FROM challenges c JOIN sponsors s ON s.id = c.sponsor_id
-         LEFT JOIN jackpot_awards a ON a.challenge_id = c.id LEFT JOIN users u ON u.id = a.user_id
-        WHERE c.id = ?`,
-      [id],
-    );
     const tasks = await rows(ctx.db, 'SELECT id, title FROM challenge_tasks WHERE challenge_id = ? ORDER BY sort_order', [id]);
     const settlement = await one(
       ctx.db,
@@ -182,11 +172,6 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
     return {
       ...summary,
       tasks,
-      jackpot: jackpot
-        ? { prize: jackpot.prize, sponsor: jackpot.sponsor,
-            winner: jackpot.winnerId ? { userId: jackpot.winnerId, firstName: jackpot.winnerName, sessions: jackpot.sessions,
-                                         bestStreak: jackpot.bestStreak, decidedBy: jackpot.decidedBy, awardedAt: jackpot.awardedAt } : null }
-        : null,
       settlement: settlement ?? null,
       me: { status: a.memberStatus, amountPaid: a.amountPaid, isHost: a.isHost, mustPay: needsPayment(a) },
     };

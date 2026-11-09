@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { parse, requireAdmin, type Ctx } from '../app.js';
 import { exec, one, rows } from '../db.js';
 import { notify } from '../lib/access.js';
-import { guard, notFound } from '../lib/errors.js';
+import { ApiError, guard, notFound } from '../lib/errors.js';
 import { flagList } from './activity.js';
 
 const idParam = z.object({ id: z.coerce.number().int() });
@@ -106,40 +106,57 @@ export function adminRoutes(app: FastifyInstance, ctx: Ctx) {
     return rows(
       ctx.db,
       `SELECT s.id, s.name, s.contact_name AS contactName, s.contact_phone AS contactPhone, s.contact_email AS contactEmail,
-              (SELECT COUNT(*) FROM challenges c WHERE c.sponsor_id = s.id) AS jackpots
+              (SELECT COUNT(*) FROM monthly_jackpots j WHERE j.sponsor_id = s.id) AS jackpots
          FROM sponsors s ORDER BY s.name`,
     );
   });
 
-  // Attach a sponsor's prize to a challenge before it is settled
-  app.put('/admin/challenges/:id/jackpot', async (req) => {
+  // One FitCircle-wide jackpot per calendar month, paid for by a sponsor
+  const monthParam = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM') });
+
+  app.put('/admin/jackpots/:month', async (req) => {
     await requireAdmin(ctx, req);
-    const { id } = parse(idParam, req.params);
+    const { month } = parse(monthParam, req.params);
     const b = parse(z.object({ sponsorId: z.number().int(), prize: z.string().trim().min(3).max(200), valueKes: z.number().nonnegative().max(10_000_000).optional() }), req.body);
-    const res = await guard(() =>
-      exec(ctx.db, "UPDATE challenges SET sponsor_id = ?, jackpot_prize = ?, jackpot_value = ? WHERE id = ? AND status IN ('draft', 'enrolling', 'active')", [b.sponsorId, b.prize, b.valueKes ?? null, id]),
+    const awarded = await one(ctx.db, 'SELECT 1 FROM jackpot_awards WHERE month = ?', [`${month}-01`]);
+    if (awarded) throw new ApiError(409, 'conflict', "That month's jackpot has already been awarded");
+    await guard(() =>
+      exec(
+        ctx.db,
+        `INSERT INTO monthly_jackpots (month, sponsor_id, prize, prize_value) VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE sponsor_id = VALUES(sponsor_id), prize = VALUES(prize), prize_value = VALUES(prize_value)`,
+        [`${month}-01`, b.sponsorId, b.prize, b.valueKes ?? null],
+      ),
     );
-    if (!res.affectedRows) throw notFound('No open challenge with that id');
     return { ok: true };
   });
 
-  // Unclaimed jackpots, and marking one as delivered by the sponsor
   app.get('/admin/jackpots', async (req) => {
     await requireAdmin(ctx, req);
     return rows(
       ctx.db,
-      `SELECT a.challenge_id AS challengeId, c.title, s.name AS sponsor, a.prize, u.first_name AS winnerName, u.phone AS winnerPhone,
-              a.decided_by AS decidedBy, a.awarded_at AS awardedAt, a.fulfilled_at AS fulfilledAt
-         FROM jackpot_awards a JOIN challenges c ON c.id = a.challenge_id JOIN sponsors s ON s.id = a.sponsor_id JOIN users u ON u.id = a.user_id
-        ORDER BY a.fulfilled_at IS NULL DESC, a.awarded_at DESC`,
+      `SELECT DATE_FORMAT(j.month, '%Y-%m') AS month, s.name AS sponsor, j.prize, j.prize_value AS prizeValue,
+              u.first_name AS winnerName, u.phone AS winnerPhone, a.sessions, a.decided_by AS decidedBy,
+              a.awarded_at AS awardedAt, a.fulfilled_at AS fulfilledAt
+         FROM monthly_jackpots j JOIN sponsors s ON s.id = j.sponsor_id
+         LEFT JOIN jackpot_awards a ON a.month = j.month LEFT JOIN users u ON u.id = a.user_id
+        ORDER BY j.month DESC`,
     );
   });
 
-  app.post('/admin/jackpots/:id/fulfilled', async (req) => {
+  // Normally the nightly job awards last month's jackpot on the 1st; this is the manual switch
+  app.post('/admin/jackpots/:month/award', async (req) => {
     await requireAdmin(ctx, req);
-    const { id } = parse(idParam, req.params);
-    const res = await exec(ctx.db, 'UPDATE jackpot_awards SET fulfilled_at = NOW() WHERE challenge_id = ? AND fulfilled_at IS NULL', [id]);
-    if (!res.affectedRows) throw notFound('No undelivered jackpot for that challenge');
+    const { month } = parse(monthParam, req.params);
+    await guard(() => ctx.db.query('CALL award_monthly_jackpot(?)', [`${month}-01`]));
+    return one(ctx.db, 'SELECT user_id AS userId, sessions, best_streak AS bestStreak, decided_by AS decidedBy FROM jackpot_awards WHERE month = ?', [`${month}-01`]);
+  });
+
+  app.post('/admin/jackpots/:month/fulfilled', async (req) => {
+    await requireAdmin(ctx, req);
+    const { month } = parse(monthParam, req.params);
+    const res = await exec(ctx.db, 'UPDATE jackpot_awards SET fulfilled_at = NOW() WHERE month = ? AND fulfilled_at IS NULL', [`${month}-01`]);
+    if (!res.affectedRows) throw notFound('No undelivered jackpot for that month');
     return { ok: true };
   });
 

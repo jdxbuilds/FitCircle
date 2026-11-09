@@ -107,13 +107,34 @@ export async function sendPayouts(db: Db, payments: Payments, log: Log = console
   return sent;
 }
 
+/** On the 1st, award last month's sponsored jackpot to the top performer across FitCircle. */
+export async function awardLastMonth(db: Db, log: Log = console.log) {
+  const due = await rows<{ month: string }>(
+    db,
+    `SELECT DATE_FORMAT(j.month, '%Y-%m-%d') AS month FROM monthly_jackpots j
+      WHERE j.month < DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        AND NOT EXISTS (SELECT 1 FROM jackpot_awards a WHERE a.month = j.month)`,
+  );
+  let n = 0;
+  for (const { month } of due) {
+    try {
+      await db.query('CALL award_monthly_jackpot(?)', [month]);
+      log(`awarded the ${month.slice(0, 7)} jackpot`);
+      n++;
+    } catch (e) {
+      log(`could not award the ${month.slice(0, 7)} jackpot: ${(e as Error).message}`);
+    }
+  }
+  return n;
+}
+
 async function main(job: string | undefined) {
   const config = loadConfig();
   const db = createDb(config);
   try {
     switch (job) {
-      case 'daily': // just after midnight Nairobi time: start, remove, settle, pay
-        console.log({ started: await startDue(db), removed: await removeMissed(db), settled: await settleEnded(db), payouts: await sendPayouts(db, createPayments(config)) });
+      case 'daily': // just after midnight Nairobi time: start, remove, settle, award last month's jackpot, pay
+        console.log({ started: await startDue(db), removed: await removeMissed(db), settled: await settleEnded(db), jackpots: await awardLastMonth(db), payouts: await sendPayouts(db, createPayments(config)) });
         break;
       case 'morning':
       case 'evening':

@@ -73,7 +73,7 @@ describe('M-Pesa STK callback', () => {
 describe('M-Pesa B2C payout result', () => {
   it('marks a processing payout as sent', async () => {
     const { u, challengeId } = await pendingPayment();
-    const res = await exec(t.ctx.db, "INSERT INTO payouts (user_id, challenge_id, kind, amount, status, scheduled_for) VALUES (?, ?, 'jackpot', 525, 'processing', CURDATE())", [u.id, challengeId]);
+    const res = await exec(t.ctx.db, "INSERT INTO payouts (user_id, challenge_id, kind, amount, status, scheduled_for) VALUES (?, ?, 'stake_payout', 525, 'processing', CURDATE())", [u.id, challengeId]);
     const id = res.insertId;
     await t.app.inject({
       method: 'POST',

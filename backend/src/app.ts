@@ -16,6 +16,7 @@ import { activityRoutes } from './routes/activity.js';
 import { instructorRoutes } from './routes/instructor.js';
 import { adminRoutes } from './routes/admin.js';
 import { webhookRoutes } from './routes/webhooks.js';
+import { jackpotRoutes } from './routes/jackpot.js';
 
 export interface Ctx {
   config: Config;
@@ -131,6 +132,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   instructorRoutes(app, ctx);
   adminRoutes(app, ctx);
   webhookRoutes(app, ctx);
+  jackpotRoutes(app, ctx);
 
   return app;
 }

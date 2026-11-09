@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: a step rail on the left walks the 8-step journey; a live phone on the right runs it.
-   Each challenge format owns a colour: Peer = flame, Instructor = cobalt, 75-Day = emerald. Gold = the sponsor's jackpot prize. */
+   Each challenge format owns a colour: Peer = flame, Instructor = cobalt, 75-Day = emerald. Gold = the sponsor's monthly jackpot prize. */
 :root{
   --bg:#EFECF5; --panel:#FAF9FD; --surface:#FFFFFF; --surface2:#F4F2F9; --ink:#191630; --muted:#6A6684; --line:#E2DEEC;
   --peer:#F2481F; --peer2:#FF9A1F;
@@ -395,7 +395,7 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
       <div><b>FitCircle</b><small>Nairobi · Launching September 2026</small></div>
     </div>
     <h1>Fitness with <em>somebody watching.</em></h1>
-    <p class="lede">A clickable MVP of the FitCircle flow. Pick a challenge format, then tap through the phone or jump to any of the 8 steps. Everything on the phone works: stake, log proof, nudge a friend, settle the stake pool, reveal the jackpot winner.</p>
+    <p class="lede">A clickable MVP of the FitCircle flow. Pick a challenge format, then tap through the phone or jump to any of the 8 steps. Everything on the phone works: stake, log proof, nudge a friend, settle the stake pool, chase the monthly jackpot.</p>
 
     <div style="display:flex;flex-direction:column;gap:10px">
       <span class="label">View the app as</span>
@@ -439,7 +439,7 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
         <li>Forfeits: 60% to FitCircle (75-day: 100%)</li>
         <li>FitCircle keeps 35% of instructor fees</li>
         <li>Jackpots are paid for by sponsors</li>
-        <li>1 jackpot winner: the top performer</li>
+        <li>1 jackpot a month: the top performer wins, resets on the 1st</li>
       </ul>
     </div>
   </section>
@@ -524,12 +524,14 @@ let S = fresh();
 const $ = id => document.getElementById(id);
 const FEE_COACH = 35; // FitCircle's cut of instructor fees from finishers
 const FORFEIT_GROUP = 60, FORFEIT_SOLO = 100, MAX_MISSED = 3; // FitCircle's cut of forfeits; misses before you're out
-// Jackpot: a sponsor's prize, one winner (the top finisher: most sessions, then longest streak, then a draw)
+// Jackpot: one sponsored prize a month for all of FitCircle. The top performer across every challenge
+// that calendar month wins (most sessions, then longest streak, then a draw). The ranking resets on the 1st.
 const JACKPOT = { prize: 'Paradise Lost Full-Day Pass (2 pax)', sponsor: 'Paradise Lost' };
-const jackpotCard = (winner) => `<div class="jack"><span class="crown">${winner ? '👑' : '🏆'}</span><span class="grow">
-  <span class="k">${winner ? 'Jackpot winner' : 'Jackpot · 1 winner: top performer'}</span>
-  <b>${winner ? esc(winner) + ' wins the ' + JACKPOT.prize : JACKPOT.prize}</b>
-  <span class="m">Paid for by ${JACKPOT.sponsor}. Never from members' stakes.</span></span></div>`;
+const MONTH = new Date().toLocaleString('en-GB', { month: 'long' });
+const jackpotCard = (note) => `<div class="jack"><span class="crown">🏆</span><span class="grow">
+  <span class="k">${MONTH} jackpot · resets on the 1st</span>
+  <b>${JACKPOT.prize}</b>
+  <span class="m">${note || `You're #4 on FitCircle this month. Most sessions wins.`} Paid for by ${JACKPOT.sponsor}, never from members' stakes.</span></span></div>`;
 const sgn = n => (n < 0 ? '−' : '+') + fmt(Math.abs(n));
 const fmt = n => Math.round(n).toLocaleString('en-KE');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -551,7 +553,7 @@ const STEPS = [
   ['Show up and log', 'Same-day photo proof', 'log'],
   ['Track your group', 'Live leaderboard and feed', 'board'],
   ['Get reminders', 'Daily nudges', 'alerts'],
-  ['Challenge ends', 'Stakes settled, jackpot won', 'end'],
+  ['Challenge ends', 'Stakes settled, sessions count to the jackpot', 'end'],
   ['Win and recruit', 'Share, start the next one', 'win'],
 ];
 const STEP_OF = {welcome:0, start:0, signin:0, signup:0, terms:0, format:0, setup:1, browse:1, coachDetail:1, build:1, stake:2, pay:2, home:4, log:3, board:4, alerts:5, end:6, win:7};
@@ -627,9 +629,10 @@ const MEMBER_TERMS_2 = [
     'A challenge with a flag still under review is settled once the flag is decided.',
   ]],
   ['7. Sponsored jackpots', [
-    'Some challenges carry a jackpot: a prize paid for by a sponsor, such as a day pass at a health or wellness venue. Jackpots are never paid from members\' stakes or entry fees.',
-    'Each jackpot has one winner: the finisher with the most counted sessions. If finishers are level, the longest streak wins. If they are still level, FitCircle picks the winner by a random draw and records the result.',
-    'You must finish the challenge to win. Any open flags are reviewed before the winner is decided.',
+    'Each calendar month FitCircle runs one jackpot for the whole platform: a prize paid for by a sponsor, such as a day pass at a health or wellness venue. Jackpots are never paid from members\' stakes or entry fees.',
+    'Each jackpot has one winner: the member with the most counted sessions across all their challenges that month. If members are level, the longest streak that month wins. If they are still level, FitCircle picks the winner by a random draw and records the result.',
+    'The ranking resets on the 1st of every month. Only sessions logged in that month count, and flagged sessions count only once a flag is cleared.',
+    'To win, your account must be in good standing when the winner is chosen (not suspended or under review). The winner is chosen shortly after the month ends.',
     'The sponsor provides the prize. FitCircle shares the winner\'s name and phone number with the sponsor only so they can deliver it.',
   ]],
   ['8. Fair play', [
@@ -706,7 +709,7 @@ V.terms = () => {
     <dl>${rows.map(([dt, dd]) => `<dt>${dt}</dt><dd>${esc(dd)}</dd>`).join('')}</dl></section>`;
   const key = coach
     ? [['shield', 'You must be verified before you can host.'], ['coin', 'You earn 65% of fees from members who finish and 40% from members who are removed.'], ['lock', 'Programmes are locked once they start.'], ['flag', 'You review flags in your programmes fairly and promptly.']]
-    : [['camera', 'Log every session the same day, with real proof.'], ['flame', 'Miss 3 sessions in a week (3 days in 75-day challenges) and you are out.'], ['coin', 'Finish and you always get your full stake back.'], ['lock', 'Stakes are locked once a challenge starts.'], ['trophy', 'Jackpots are paid for by sponsors. One winner: the top performer.']];
+    : [['camera', 'Log every session the same day, with real proof.'], ['flame', 'Miss 3 sessions in a week (3 days in 75-day challenges) and you are out.'], ['coin', 'Finish and you always get your full stake back.'], ['lock', 'Stakes are locked once a challenge starts.'], ['trophy', 'One sponsored jackpot a month. The top performer wins; it resets on the 1st.']];
   return `${top(coach ? 'Instructor terms' : 'Member terms')}
   <div class="terms">
     <div><span class="eyebrow">${coach ? 'FitCircle instructors' : 'FitCircle members'}</span>
@@ -880,7 +883,7 @@ V.home = () => {
   <div class="row"><div class="grow"><div class="small muted">Habari, ${esc(S.user.name || 'Amani')}</div><div style="font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em">${SEG[S.seg].name}</div></div>
     <span class="pill seg">${I.flame.replace('class="ic"','class="ic" style="width:14px;height:14px"')}<span class="num">${m.st}-day streak</span></span></div>
   ${heroFor()}
-  ${jackpotCard(null)}
+  ${jackpotCard()}
   <button class="logcta ${S.logged ? 'done' : ''}" data-act="${S.logged ? 'go' : 'go'}" data-arg="${S.logged ? 'board' : 'log'}" style="text-align:left;width:100%">
     <span class="pulse">${S.logged ? I.check : I.camera}</span>
     <span class="grow"><b style="display:block">${S.logged ? 'Logged today at 07:12' : "You haven't logged today"}</b>
@@ -959,12 +962,7 @@ const settlement = () => {
   return {list, done, amt, pool, forfeited, pct, bonus, fee, each};
 };
 
-// Top finisher: most sessions, then longest streak (the real app breaks remaining ties with a recorded draw)
-const jackpotWinner = () => {
-  const done = settlement().done;
-  const w = members().filter(m => done.includes(m.n)).sort((x, y) => y.s - x.s || y.st - x.st)[0];
-  return w ? (w.me ? 'You' : w.n) : null;
-};
+const monthNote = () => `Every session you logged here counts towards the ${MONTH} jackpot.`;
 
 V.end = () => {
   if (S.seg === 'coach') { const c = coach(); return `
@@ -972,12 +970,12 @@ V.end = () => {
     <div class="hero"><div class="k">${c.prog}</div><div class="v num"><span data-count="28">28</span><small style="margin-left:6px">/ 30</small></div><div class="meta"><span>sessions logged over ${c.weeks} weeks</span></div><div class="bar"><i style="width:93%"></i></div></div>
     <div class="card"><div class="small muted" style="margin-bottom:10px">Finishers, by sessions logged</div>${board(4)}</div>
     <div class="card row"><span class="av" style="background:linear-gradient(135deg,${c.grad[0]},${c.grad[1]})">${c.init[0]}</span><span class="small grow">${c.name} earned <b>${c.cut}%</b> of the entry fees from ${c.joined} people. You made that possible.</span></div>
-    ${jackpotCard(jackpotWinner())}
+    ${jackpotCard(monthNote())}
     <div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`; }
   if (!staked()) return `<div class="topbar"><h2 style="padding:0">Challenge complete</h2></div>
     <div class="hero"><div class="k">No-stakes challenge</div><div class="v">You finished.</div><div class="meta"><span>Every session logged, all with proof.</span></div></div>
     <div class="card">${board()}</div>
-    ${jackpotCard(jackpotWinner())}
+    ${jackpotCard(monthNote())}
     <div class="stick"><button class="btn" data-act="go" data-arg="win">See your result ${I.arrow}</button></div>`;
   const s = settlement();
   return `<div class="topbar"><h2 style="padding:0">${S.seg === 'd75' ? 'Challenge settled' : 'Settling the stake pool'}</h2></div>
@@ -991,7 +989,7 @@ V.end = () => {
     <span class="muted">FitCircle keeps (${s.pct}%)</span><span>KES ${fmt(s.fee)}</span>
     ${s.pct < 100 ? `<span class="muted">Shared by ${s.done.length} finishers (${100 - s.pct}%)</span><span>KES ${fmt(s.bonus)} each</span>` : ''}
     <span class="tot">Each finisher receives</span><span class="tot" style="color:var(--good)">KES ${fmt(s.each)}</span></div>
-  ${jackpotCard(jackpotWinner())}
+  ${jackpotCard(monthNote())}
     <div class="stick"><button class="btn" data-act="go" data-arg="win">${I.trophy} Collect KES ${fmt(s.each)}</button></div>`;
 };
 

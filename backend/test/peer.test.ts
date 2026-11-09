@@ -30,7 +30,7 @@ describe('peer group: create, stake, show up, settle', () => {
     // Step 3: commit stakes. Brian never pays.
     for (const p of [amani, friends[0], friends[1]]) await pay(t, p.token, id);
     const view = await call(t, 'GET', `/challenges/${id}`, amani.token);
-    expect(view.body).toMatchObject({ stakePool: 1500, members: 4, jackpot: null, me: { amountPaid: 500, mustPay: false } });
+    expect(view.body).toMatchObject({ stakePool: 1500, members: 4, me: { amountPaid: 500, mustPay: false } });
     const notes = await call(t, 'GET', '/notifications', amani.token);
     expect(notes.body[0]).toMatchObject({ type: 'stake_locked', title: 'Stake locked' });
 
@@ -118,21 +118,31 @@ describe('settlement at the end of a challenge', () => {
     }
     conn.release();
 
-    // A sponsor pays for this challenge's jackpot (admin tools)
+    // A sponsor pays for this month's FitCircle-wide jackpot (admin tools)
     const admin = await signUp(t, 'Ruth');
     await exec(t.ctx.db, "UPDATE users SET role = 'admin' WHERE id = ?", [admin.id]);
     const sponsor = await call(t, 'POST', '/admin/sponsors', admin.token, { name: `Paradise Lost ${id}` });
     expect(sponsor.status).toBe(201);
-    expect((await call(t, 'PUT', `/admin/challenges/${id}/jackpot`, admin.token, { sponsorId: sponsor.body.id, prize: 'Paradise Lost Full-Day Pass (2 pax)', valueKes: 7000 })).status).toBe(200);
-    expect((await call(t, 'PUT', `/admin/challenges/${id}/jackpot`, people[0].token, { sponsorId: sponsor.body.id, prize: 'Nope' })).status).toBe(403);
+    const month = (await one<{ m: string }>(t.ctx.db, "SELECT DATE_FORMAT(CURDATE(), '%Y-%m') AS m"))!.m;
+    const prize = { sponsorId: sponsor.body.id, prize: 'Paradise Lost Full-Day Pass (2 pax)', valueKes: 7000 };
+    expect((await call(t, 'PUT', `/admin/jackpots/${month}`, admin.token, prize)).status).toBe(200);
+    expect((await call(t, 'PUT', `/admin/jackpots/${month}`, people[0].token, prize)).status).toBe(403);
+    expect((await call(t, 'PUT', '/admin/jackpots/2026-13', admin.token, prize)).status).toBe(400);
+    // The month is not over, so it cannot be awarded yet
+    expect((await call(t, 'POST', `/admin/jackpots/${month}/award`, admin.token)).status).toBe(422);
+
+    const jackpot = await call(t, 'GET', '/jackpot', people[0].token);
+    expect(jackpot.status).toBe(200);
+    expect(jackpot.body.current).toMatchObject({ month, prize: prize.prize, sponsor: `Paradise Lost ${id}` });
+    expect(jackpot.body.current.resetsOn).toMatch(/^\d{4}-\d{2}-01$/);
+    // Wambui's sessions (6, 5 and 4 days ago) count when they fall in this calendar month
+    if ((await one<{ d: number }>(t.ctx.db, 'SELECT DAYOFMONTH(CURDATE()) AS d'))!.d > 6)
+      expect(jackpot.body.me).toMatchObject({ sessions: 3, bestStreak: 3 });
+    const listed = await call(t, 'GET', '/admin/jackpots', admin.token);
+    expect(listed.body.find((j: { month: string }) => j.month === month)).toMatchObject({ prize: prize.prize, winnerName: null });
 
     expect(await settleEnded(t.ctx.db, () => {})).toBeGreaterThanOrEqual(1);
     const view = await call(t, 'GET', `/challenges/${id}`, people[0].token);
-    // One jackpot winner: the top finisher (Wambui logged 3 sessions, the others 2)
-    expect(view.body.jackpot).toMatchObject({ prize: 'Paradise Lost Full-Day Pass (2 pax)', sponsor: `Paradise Lost ${id}`, winner: { userId: people[0].id, sessions: 3, decidedBy: 'sessions' } });
-    const jackpots = await call(t, 'GET', '/admin/jackpots', admin.token);
-    expect(jackpots.body.find((j: { challengeId: number }) => j.challengeId === id)).toMatchObject({ winnerName: 'Wambui', fulfilledAt: null });
-    expect((await call(t, 'POST', `/admin/jackpots/${id}/fulfilled`, admin.token)).status).toBe(200);
     // Mutua forfeits 100: FitCircle keeps 60, finishers share 40 → 13 each (whole shillings), leftover 1 to FitCircle
     expect(view.body.status).toBe('settled');
     expect(view.body.settlement).toMatchObject({ gross: 400, forfeited: 100, forfeitPct: 60, fee: 61, completers: 3, forfeiters: 1, bonusEach: 13, amountEach: 113 });
