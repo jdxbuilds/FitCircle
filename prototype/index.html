@@ -412,6 +412,8 @@ textarea:focus{outline:none; border-color:var(--seg); background:var(--surface)}
         <button class="chipbtn" data-act="restart">Start over</button>
         <button class="chipbtn" data-act="skipEnd">Fast-forward to challenge end</button>
         <button class="chipbtn" data-act="teen">Try a 17-year-old sign-up</button>
+        <button class="chipbtn" data-act="demoTerms" data-arg="member">Member terms</button>
+        <button class="chipbtn" data-act="demoTerms" data-arg="coach">Instructor terms</button>
       </div>
     </div>
 
@@ -1193,6 +1195,7 @@ const A = {
     S.err = ''; if (age < 18) S.noStake = true; A.showTerms('member');
   },
   showTerms: who => { S.termsFor = who; S.termsRead = false; go('terms'); },
+  demoTerms: who => { S = Object.assign(fresh(), {seg: S.seg}); S.signupAs = who; if (who === 'coach') { S.user.name = 'Wanjiru'; S.user.age = '34'; } S.hist = ['welcome', 'start']; S.screen = 'signup'; A.showTerms(who); },
   acceptTerms: () => {
     if (!S.termsRead) { toast('Scroll to the end of the terms first'); return; }
     S.accepted = { ...(S.accepted || {}), [S.termsFor]: TERMS_VERSION };
