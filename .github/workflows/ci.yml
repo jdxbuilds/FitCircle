@@ -26,6 +26,7 @@ jobs:
           cache-dependency-path: |
             backend/package-lock.json
             infra/package-lock.json
+            mobile/package-lock.json
 
       - name: Database rules (db/test.sh)
         env:
@@ -45,6 +46,12 @@ jobs:
           TEST_DB_USER: root
           TEST_DB_PASSWORD: root
         run: npm test
+
+      - name: Mobile app typecheck
+        working-directory: mobile
+        run: |
+          npm ci
+          npm run typecheck
 
       - name: AWS infrastructure synth
         working-directory: infra

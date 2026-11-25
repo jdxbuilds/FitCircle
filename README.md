@@ -4,12 +4,19 @@ Social fitness accountability: join a circle, stake money on showing up, prove e
 
 | Folder | What it is |
 |---|---|
+| `mobile/` | The phone app for iOS and Android: Expo / React Native ([mobile/README.md](mobile/README.md)) |
 | `prototype/` | Clickable MVP of the app (open `index.html` in a browser) |
 | `db/` | MySQL 8 database: tables, platform rules, settlement ([db/README.md](db/README.md)) |
 | `backend/` | The API: Node.js + TypeScript ([backend/README.md](backend/README.md)) |
 | `infra/` | AWS setup as code: containers, database, storage, scheduled jobs ([infra/README.md](infra/README.md)) |
+| `docs/` | Word documents: terms, rules, questions for the lawyer and CTO |
 
-Every push runs the database rule checks, the API tests and the AWS template build (`.github/workflows/ci.yml`).
+Every push runs the database rule checks, the API tests, the app typecheck and the AWS template build (`.github/workflows/ci.yml`).
+
+```
+Phone app ──HTTPS──▶ API (AWS containers) ──▶ MySQL (AWS RDS)
+    └── proof photos/videos ──▶ S3          M-Pesa · Flutterwave · Africa's Talking
+```
 
 ## The four formats
 

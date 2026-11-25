@@ -97,7 +97,10 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   if (ctx.config.RATE_LIMIT === 'on') await app.register(rateLimit, { max: 300, timeWindow: '1 minute' });
   // Browser access for the app's web preview. Native apps don't send an Origin, so they don't need this.
   const origins = ctx.config.CORS_ORIGINS ?? (ctx.config.NODE_ENV === 'production' ? '' : '*');
-  if (origins) await app.register(cors, { origin: origins === '*' ? true : origins.split(',').map((o) => o.trim()) });
+  if (origins) await app.register(cors, {
+      origin: origins === '*' ? true : origins.split(',').map((o) => o.trim()),
+      methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    });
 
   app.decorateRequest('tokenUserId', null);
   app.addHook('onRequest', async (req) => {

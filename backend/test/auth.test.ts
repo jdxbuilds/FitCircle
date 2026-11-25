@@ -86,3 +86,13 @@ describe('sign-in with an SMS code', () => {
     expect((await call(t, 'GET', '/me', 'not-a-token')).status).toBe(401);
   });
 });
+
+describe('browser access (CORS)', () => {
+  it('allows the app web preview to use every method the API needs', async () => {
+    const t = await makeApp();
+    const res = await t.app.inject({ method: 'OPTIONS', url: '/flags/1', headers: { origin: 'http://localhost:8081', 'access-control-request-method': 'PATCH' } });
+    expect(res.statusCode).toBe(204);
+    expect(String(res.headers['access-control-allow-methods'])).toContain('PATCH');
+    await t.close();
+  });
+});

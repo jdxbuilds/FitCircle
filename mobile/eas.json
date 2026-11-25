@@ -1,0 +1,19 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "development": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_API_URL": "https://staging-api.fitcircle.co" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_API_URL": "https://staging-api.fitcircle.co" }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://api.fitcircle.co" }
+    }
+  },
+  "submit": { "production": {} }
+}

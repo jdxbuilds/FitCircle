@@ -55,6 +55,7 @@ run "UPDATE payments SET status = 'succeeded' WHERE provider_ref = 'T1'" >/dev/n
 expect_value "M-Pesa confirmation locks the stake" "SELECT amount_paid FROM challenge_members WHERE challenge_id = 20 AND user_id = 1" "200.00"
 run "CALL start_challenge(20)" >/dev/null
 expect_value "unpaid member is removed at start" "SELECT status FROM challenge_members WHERE challenge_id = 20 AND user_id = 2" "withdrawn"
+expect_value "starting early moves the start date to today" "SELECT start_date = CURDATE() FROM challenges WHERE id = 20" "1"
 
 echo "Logging proof"
 expect_error "backdating is refused" \

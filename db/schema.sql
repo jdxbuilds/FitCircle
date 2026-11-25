@@ -716,7 +716,8 @@ BEGIN
      WHERE challenge_id = p_challenge_id AND status = 'active' AND amount_paid IS NULL;
     SET @fitcircle_settling = 0;
   END IF;
-  UPDATE challenges SET status = 'active' WHERE id = p_challenge_id;
+  -- Starting early (host's "start now") moves the start date to today so sessions can be logged straight away
+  UPDATE challenges SET status = 'active', start_date = LEAST(start_date, CURDATE()) WHERE id = p_challenge_id;
   INSERT INTO notifications (user_id, type, title, body)
   SELECT user_id, 'challenge_started', 'Your challenge has started', 'Stakes are locked. Log your first session today.'
     FROM challenge_members WHERE challenge_id = p_challenge_id AND status = 'active';
