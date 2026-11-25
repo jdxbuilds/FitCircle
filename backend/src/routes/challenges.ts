@@ -38,6 +38,17 @@ const createBody = z.discriminatedUnion('type', [
     entryFee: money,
     capacity: z.number().int().min(1).max(1000).optional(),
   }),
+  // Open challenges run by the FitCircle team: anyone can join, Peer Group rules, one stake for everyone
+  z.object({
+    type: z.literal('fitcircle'),
+    title: z.string().trim().min(2).max(160),
+    description: z.string().max(4000).optional(),
+    startDate: date,
+    weeks: z.number().int().min(1).max(12),
+    sessionsPerWeek: z.number().int().min(2, 'FitCircle minimum is 2 sessions a week').max(7),
+    stake: money.nullable().default(null),
+    capacity: z.number().int().min(2).max(10000).optional(),
+  }),
 ]);
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -65,7 +76,7 @@ export async function insertChallenge(conn: Conn, userId: number, body: z.infer<
         [
           body.type,
           body.title,
-          body.type === 'instructor' ? (body.description ?? null) : null,
+          body.type === 'instructor' || body.type === 'fitcircle' ? (body.description ?? null) : null,
           userId,
           body.type === 'instructor' ? userId : null,
           body.startDate,
@@ -91,14 +102,15 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
   app.post('/challenges', async (req, reply) => {
     const u = await requireUser(ctx, req);
     const body = parse(createBody, req.body);
+    if (body.type === 'fitcircle' && u.role !== 'admin') throw forbidden('Only the FitCircle team can run FitCircle Challenges');
     if (body.startDate < new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10)) throw badRequest('Start date must be today or later');
     const id = await guard(() =>
       tx(ctx.db, async (conn) => {
         const id = await insertChallenge(conn, u.id, body);
         if (body.type === 'custom75')
           for (const [i, t] of body.tasks.entries()) await exec(conn, 'INSERT INTO challenge_tasks (challenge_id, title, sort_order) VALUES (?, ?, ?)', [id, t, i + 1]);
-        // Peer and 75-day creators take part themselves; instructors host without joining.
-        if (body.type !== 'instructor') await exec(conn, "INSERT INTO challenge_members (challenge_id, user_id, role) VALUES (?, ?, 'owner')", [id, u.id]);
+        // Peer and 75-day creators take part themselves; instructors and the FitCircle team host without joining.
+        if (body.type !== 'instructor' && body.type !== 'fitcircle') await exec(conn, "INSERT INTO challenge_members (challenge_id, user_id, role) VALUES (?, ?, 'owner')", [id, u.id]);
         return id;
       }),
     );
@@ -106,14 +118,16 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
     return reply.status(201).send({ id, inviteCode: c!.invite_code });
   });
 
-  // Browse open instructor programmes
+  // Browse open instructor programmes (default) or FitCircle Challenges (?type=fitcircle)
   app.get('/challenges/discover', async (req) => {
     await requireUser(ctx, req);
+    const { type } = parse(z.object({ type: z.enum(['instructor', 'fitcircle']).default('instructor') }), req.query);
     return rows(
       ctx.db,
-      `SELECT ${SUMMARY} FROM challenges c JOIN instructor_profiles ip ON ip.user_id = c.instructor_id
-        WHERE c.type = 'instructor' AND c.status = 'enrolling' AND c.start_date >= CURDATE()
+      `SELECT ${SUMMARY}, c.description FROM challenges c LEFT JOIN instructor_profiles ip ON ip.user_id = c.instructor_id
+        WHERE c.type = ? AND c.status = 'enrolling' AND c.start_date >= CURDATE()
         ORDER BY c.start_date LIMIT 100`,
+      [type],
     );
   });
 
@@ -151,7 +165,7 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
     const u = await requireUser(ctx, req);
     const { id } = parse(z.object({ id: z.coerce.number().int() }), req.params);
     const a = await challengeAccess(ctx, id, u);
-    const isPublic = a.challenge.type === 'instructor' && a.challenge.status === 'enrolling';
+    const isPublic = (a.challenge.type === 'instructor' || a.challenge.type === 'fitcircle') && a.challenge.status === 'enrolling';
     if (!a.memberStatus && !a.isHost && !isPublic) throw forbidden('Join this challenge to see it');
     const summary = await one(
       ctx.db,
@@ -190,7 +204,7 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
     const { id } = parse(z.object({ id: z.coerce.number().int() }), req.params);
     const c = await one<{ type: string }>(ctx.db, 'SELECT type FROM challenges WHERE id = ?', [id]);
     if (!c) throw notFound('Challenge not found');
-    if (c.type !== 'instructor') throw forbidden('Peer and 75-day groups are joined with an invite code');
+    if (c.type !== 'instructor' && c.type !== 'fitcircle') throw forbidden('Peer and 75-day groups are joined with an invite code');
     return reply.status(201).send(await join(ctx, id, u.id));
   });
 

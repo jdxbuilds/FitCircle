@@ -152,11 +152,12 @@ CREATE TABLE instructor_documents (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- Challenges: one table for all three formats
+-- Challenges: one table for all four formats.
+-- 'fitcircle' = open challenges run by FitCircle: anyone can join, Peer Group rules and money split
 -- ---------------------------------------------------------------------
 CREATE TABLE challenges (
   id                 BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  type               ENUM('peer','instructor','custom75') NOT NULL,
+  type               ENUM('peer','instructor','custom75','fitcircle') NOT NULL,
   title              VARCHAR(160) NOT NULL,
   description        TEXT,
   created_by         BIGINT UNSIGNED NOT NULL,
@@ -455,6 +456,9 @@ BEGIN
        SELECT 1 FROM instructor_profiles WHERE user_id = NEW.instructor_id AND verification = 'verified') THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only verified instructors can host instructor challenges';
   END IF;
+  IF NEW.type = 'fitcircle' AND NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.created_by AND role = 'admin') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only the FitCircle team can run FitCircle Challenges';
+  END IF;
 END//
 
 -- A profile becomes verified only when all three documents are approved
@@ -738,7 +742,7 @@ BEGIN
   CREATE TEMPORARY TABLE tmp_week_counts AS
     SELECT l.challenge_id, l.user_id, FLOOR(DATEDIFF(l.log_date, c.start_date) / 7) + 1 AS wk, COUNT(*) AS n
       FROM session_logs l JOIN challenges c ON c.id = l.challenge_id
-     WHERE c.status = 'active' AND c.type IN ('peer', 'instructor') AND l.status IN ('counted', 'flagged')
+     WHERE c.status = 'active' AND c.type IN ('peer', 'instructor', 'fitcircle') AND l.status IN ('counted', 'flagged')
      GROUP BY l.challenge_id, l.user_id, wk;
   DROP TEMPORARY TABLE IF EXISTS tmp_ok_weeks;
   CREATE TEMPORARY TABLE tmp_ok_weeks AS
@@ -751,7 +755,7 @@ BEGIN
     JOIN challenges c ON c.id = m.challenge_id
     LEFT JOIN tmp_ok_weeks o ON o.challenge_id = m.challenge_id AND o.user_id = m.user_id
      SET m.status = 'forfeited', m.removed_at = @removal_run, m.forfeit_reason = 'Missed 3 sessions in one week'
-   WHERE c.status = 'active' AND c.type IN ('peer', 'instructor') AND m.status = 'active'
+   WHERE c.status = 'active' AND c.type IN ('peer', 'instructor', 'fitcircle') AND m.status = 'active'
      AND COALESCE(o.ok, 0) < LEAST(c.duration_days DIV 7, FLOOR(DATEDIFF(CURDATE(), c.start_date) / 7));
 
   -- Full days (every task done) per 75-day member, before today

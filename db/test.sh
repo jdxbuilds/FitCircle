@@ -208,6 +208,27 @@ expect_value "instructor gets 65% of finisher fee + 40% of forfeited fee (650 + 
   "SELECT amount FROM payouts WHERE challenge_id = 50 AND kind = 'instructor_earning'" "1050.00"
 expect_value "FitCircle keeps 35% + 60% (350 + 600)" "SELECT fee_amount FROM settlements WHERE challenge_id = 50" "950.00"
 
+echo "FitCircle Challenges"
+expect_error "only the FitCircle team can run a FitCircle Challenge" \
+  "INSERT INTO challenges (type, title, created_by, start_date, duration_days, sessions_per_week, invite_code) VALUES ('fitcircle','Not mine',1,CURDATE() + INTERVAL 3 DAY,28,3,'FC-NM')" \
+  "Only the FitCircle team"
+run "SET @fitcircle_backfill = 1;
+     INSERT INTO challenges (id, type, title, created_by, status, start_date, duration_days, sessions_per_week, is_staked, stake_amount, invite_code)
+       VALUES (60,'fitcircle','Morning Move',11,'enrolling',CURDATE() - INTERVAL 7 DAY,7,2,TRUE,100,'FC-MM');
+     INSERT INTO challenge_members (challenge_id, user_id) VALUES (60,1),(60,2),(60,3),(60,4);
+     INSERT INTO payments (user_id, challenge_id, kind, provider, provider_ref, amount, status) VALUES
+       (1,60,'stake','mpesa','M1',100,'succeeded'),(2,60,'stake','mpesa','M2',100,'succeeded'),(3,60,'stake','mpesa','M3',100,'succeeded'),(4,60,'stake','mpesa','M4',100,'succeeded');
+     CALL start_challenge(60);
+     INSERT INTO session_logs (challenge_id, user_id, log_date, logged_at, media_url, media_type)
+       SELECT 60, u, CURDATE() - INTERVAL d DAY, TIMESTAMP(CURDATE() - INTERVAL d DAY, '07:00'), 'x.jpg', 'photo'
+       FROM (SELECT 1 u UNION ALL SELECT 2 UNION ALL SELECT 3) a, (SELECT 3 d UNION ALL SELECT 5) b;
+     SET @fitcircle_backfill = 0;" >/dev/null
+expect_value "FitCircle Challenge uses the group split (0% fee, 60% of forfeits)" "SELECT CONCAT(fee_pct, '|', forfeit_pct) FROM challenges WHERE id = 60" "0.00|60.00"
+run "CALL apply_removals()" >/dev/null
+expect_value "missing a week removes you from a FitCircle Challenge" "SELECT status FROM challenge_members WHERE challenge_id = 60 AND user_id = 4" "forfeited"
+run "CALL settle_challenge(60)" >/dev/null
+expect_value "finishers get stake back + share of 40%, FitCircle keeps 60% + leftover" "SELECT CONCAT(amount_each, '|', fee_amount) FROM settlements WHERE challenge_id = 60" "113.00|61.00"
+
 echo
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

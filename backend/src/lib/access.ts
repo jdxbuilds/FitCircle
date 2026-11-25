@@ -4,7 +4,7 @@ import { forbidden, notFound } from './errors.js';
 
 export interface ChallengeRow {
   id: number;
-  type: 'peer' | 'instructor' | 'custom75';
+  type: 'peer' | 'instructor' | 'custom75' | 'fitcircle';
   title: string;
   status: 'draft' | 'enrolling' | 'active' | 'settled' | 'cancelled';
   created_by: number;

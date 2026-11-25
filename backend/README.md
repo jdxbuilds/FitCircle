@@ -72,10 +72,10 @@ All responses are JSON. Errors look like `{ "error": { "code": "rule_violation",
 
 | | |
 |---|---|
-| `POST /challenges` | `type: peer` (weeks, sessionsPerWeek ≥ 2, stake?), `custom75` (mode hard/soft, tasks[]), `instructor` (verified only; entryFee) |
-| `GET /challenges/mine` · `GET /challenges/discover` | My challenges · open instructor programmes |
+| `POST /challenges` | `type: peer` (weeks, sessionsPerWeek ≥ 2, stake?), `custom75` (mode hard/soft, tasks[]), `instructor` (verified only; entryFee), `fitcircle` (FitCircle team only; open to everyone, Peer rules, one stake) |
+| `GET /challenges/mine` · `GET /challenges/discover?type=instructor\|fitcircle` | My challenges · open instructor programmes or FitCircle Challenges |
 | `GET /invites/:code` · `POST /challenges/join {inviteCode}` | Preview and join a group |
-| `POST /challenges/:id/join` | Join an instructor programme |
+| `POST /challenges/:id/join` | Join an instructor programme or a FitCircle Challenge |
 | `GET /jackpot` | This month's sponsored jackpot, the top 10, my rank, when it resets (the 1st) and past winners |
 | `GET /challenges/:id` | Details, live stake pool, tasks, settlement, what I still need to do |
 | `POST /challenges/:id/leave` | Before the start only; paid stakes are refunded |
