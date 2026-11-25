@@ -19,6 +19,8 @@
     "@aws-sdk/client-s3": "^3.1158.0",
     "@aws-sdk/s3-presigned-post": "^3.1158.0",
     "@aws-sdk/s3-request-presigner": "^3.1158.0",
+    "@fastify/cors": "^11.4.3",
+    "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
     "aws-ssl-profiles": "^1.1.2",
     "fastify": "^5.12.7",

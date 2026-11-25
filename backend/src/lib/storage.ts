@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join, normalize } from 'node:path';
 import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -39,13 +41,14 @@ const EXPIRES = 10 * 60;
 
 export function createStorage(config: Config): Storage {
   if (config.STORAGE_DRIVER === 'local') {
-    // Development only: no real files. Upload tickets and links are placeholders.
+    // Development only: files go to a local folder through POST /dev/uploads (see routes/dev.ts).
+    // Tests skip the upload, so a missing file still counts as present.
     return {
       async presignUpload(key) {
         return { url: `${config.PUBLIC_BASE_URL}/dev/uploads`, fields: { key }, key, expiresIn: EXPIRES };
       },
       async viewUrl(key) { return `${config.PUBLIC_BASE_URL}/dev/files/${encodeURIComponent(key)}`; },
-      async exists() { return true; },
+      async exists(key) { return config.NODE_ENV === 'test' || existsSync(localPath(config, key)); },
     };
   }
 
@@ -74,4 +77,11 @@ export function createStorage(config: Config): Storage {
       }
     },
   };
+}
+
+/** Where a key lives in the local development upload folder (never outside it). */
+export function localPath(config: Config, key: string): string {
+  const clean = normalize(key).replace(/^([/\\]|\.\.[/\\])+/, '');
+  if (clean.includes('..')) throw new Error('Bad key');
+  return join(config.LOCAL_UPLOAD_DIR, clean);
 }

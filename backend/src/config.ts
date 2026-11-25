@@ -6,6 +6,9 @@ const schema = z
     PORT: z.coerce.number().default(3000),
     PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
     RATE_LIMIT: z.enum(['on', 'off']).default('on'),
+    // Browser origins allowed to call the API (comma-separated). The mobile app does not need this; its web preview does.
+    CORS_ORIGINS: z.string().optional(),
+    LOCAL_UPLOAD_DIR: z.string().default('.uploads'), // STORAGE_DRIVER=local only
 
     DB_HOST: z.string().default('127.0.0.1'),
     DB_PORT: z.coerce.number().default(3306),

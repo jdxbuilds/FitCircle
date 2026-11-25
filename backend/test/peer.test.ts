@@ -146,6 +146,8 @@ describe('settlement at the end of a challenge', () => {
     // Mutua forfeits 100: FitCircle keeps 60, finishers share 40 → 13 each (whole shillings), leftover 1 to FitCircle
     expect(view.body.status).toBe('settled');
     expect(view.body.settlement).toMatchObject({ gross: 400, forfeited: 100, forfeitPct: 60, fee: 61, completers: 3, forfeiters: 1, bonusEach: 13, amountEach: 113 });
+    // The challenge winner: Wambui logged the most sessions
+    expect(view.body.winner).toMatchObject({ userId: people[0].id, firstName: 'Wambui', sessions: 3, bestStreak: 3 });
 
     // Payouts go out the day after settlement, exactly once
     expect(await one(t.ctx.db, 'SELECT MIN(scheduled_for) = CURDATE() + INTERVAL 1 DAY AS tomorrow FROM payouts WHERE challenge_id = ?', [id])).toMatchObject({ tomorrow: 1 });

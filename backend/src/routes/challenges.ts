@@ -183,10 +183,24 @@ export function challengeRoutes(app: FastifyInstance, ctx: Ctx) {
          FROM settlements WHERE challenge_id = ?`,
       [id],
     );
+    // Once settled: the challenge winner, the top performer among finishers (most counted sessions, then longest streak)
+    const winner = settlement
+      ? await one(
+          ctx.db,
+          `SELECT m.user_id AS userId, u.first_name AS firstName, COUNT(l.id) AS sessions, COALESCE(MAX(s.best_streak), 0) AS bestStreak
+             FROM challenge_members m JOIN users u ON u.id = m.user_id
+             LEFT JOIN session_logs l ON l.challenge_id = m.challenge_id AND l.user_id = m.user_id AND l.status = 'counted'
+             LEFT JOIN v_member_streaks s ON s.challenge_id = m.challenge_id AND s.user_id = m.user_id
+            WHERE m.challenge_id = ? AND m.status = 'completed'
+            GROUP BY m.user_id, u.first_name ORDER BY sessions DESC, bestStreak DESC, m.user_id LIMIT 1`,
+          [id],
+        )
+      : null;
     return {
       ...summary,
       tasks,
       settlement: settlement ?? null,
+      winner: winner ?? null,
       me: { status: a.memberStatus, amountPaid: a.amountPaid, isHost: a.isHost, mustPay: needsPayment(a) },
     };
   });

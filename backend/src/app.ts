@@ -17,6 +17,8 @@ import { instructorRoutes } from './routes/instructor.js';
 import { adminRoutes } from './routes/admin.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { jackpotRoutes } from './routes/jackpot.js';
+import { devStorageRoutes } from './routes/dev.js';
+import cors from '@fastify/cors';
 
 export interface Ctx {
   config: Config;
@@ -93,6 +95,9 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   });
 
   if (ctx.config.RATE_LIMIT === 'on') await app.register(rateLimit, { max: 300, timeWindow: '1 minute' });
+  // Browser access for the app's web preview. Native apps don't send an Origin, so they don't need this.
+  const origins = ctx.config.CORS_ORIGINS ?? (ctx.config.NODE_ENV === 'production' ? '' : '*');
+  if (origins) await app.register(cors, { origin: origins === '*' ? true : origins.split(',').map((o) => o.trim()) });
 
   app.decorateRequest('tokenUserId', null);
   app.addHook('onRequest', async (req) => {
@@ -133,6 +138,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   adminRoutes(app, ctx);
   webhookRoutes(app, ctx);
   jackpotRoutes(app, ctx);
+  if (ctx.config.STORAGE_DRIVER === 'local' && ctx.config.NODE_ENV !== 'production') await devStorageRoutes(app, ctx);
 
   return app;
 }
